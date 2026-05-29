@@ -1533,7 +1533,7 @@ function calcTotalsFrom(doc) {
     const pType = it.priceType || 'ex';
     if (pType === 'in') {
       // 税込入力 → 税抜を逆算
-      const totalIncl = qty * price;
+      const totalIncl = Math.floor(qty * price);
       const totalExcl = inclToExcl(totalIncl, rate);
       const taxAmt = totalIncl - totalExcl;
       sub += totalExcl;
@@ -1541,7 +1541,7 @@ function calcTotalsFrom(doc) {
       else if (rate === 8) tax8 += taxAmt;
     } else {
       // 税抜入力（従来通り）
-      const totalExcl = qty * price;
+      const totalExcl = Math.floor(qty * price);
       sub += totalExcl;
       if (rate === 10) tax10 += Math.floor(totalExcl * 0.1);
       else if (rate === 8) tax8 += Math.floor(totalExcl * 0.08);
