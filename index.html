@@ -2093,4 +2093,29 @@ function importData(input) {
 }
 
 function clearAllData() {
-  if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は元に戻せません。'))
+  if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は元に戻せません。')) return;
+  ['invoice_docs','invoice_profiles','invoice_clients','invoice_items','invoice_active_profile'].forEach(k => localStorage.removeItem(k));
+  location.reload();
+}
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  if (location.hash.startsWith('#share=')) { checkSharedUrl(); return; }
+  updateSidebarProfile();
+  renderFilterTabs();
+  renderDocList();
+});
+window.addEventListener('hashchange', checkSharedUrl);
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.classList.remove('open'); });
+});
+document.addEventListener('click', e => {
+  const popup = document.getElementById('col-popup');
+  if (popup && !popup.closest('.col-settings-wrap').contains(e.target)) {
+    popup.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
