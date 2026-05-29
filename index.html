@@ -1822,11 +1822,35 @@ function openUrlModal() {
   document.getElementById('copy-btn').style.display = 'none';
 }
 function closeUrlModal() { document.getElementById('url-modal').classList.remove('open'); }
-function generateUrl() {
+// 圧縮ヘルパー（CompressionStream）
+async function compressToBase64(str) {
+  const cs = new CompressionStream('deflate-raw');
+  const writer = cs.writable.getWriter();
+  writer.write(new TextEncoder().encode(str));
+  writer.close();
+  const buf = await new Response(cs.readable).arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+async function decompressFromBase64(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const ds = new DecompressionStream('deflate-raw');
+  const writer = ds.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+  const buf = await new Response(ds.readable).arrayBuffer();
+  return new TextDecoder().decode(buf);
+}
+
+async function generateUrl() {
   if (!currentDoc) { toast('先に書類を作成してください'); return; }
   const expires = Date.now() + selectedExpiry * 86400000;
   const payload = { doc: currentDoc, expires };
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  const encoded = await compressToBase64(JSON.stringify(payload));
   generatedUrl = location.href.split('#')[0] + '#share=' + encoded;
   document.getElementById('url-display').textContent = generatedUrl;
   document.getElementById('url-display').style.display = 'block';
@@ -1837,11 +1861,19 @@ function copyUrl() {
 }
 
 // ===== SHARED URL HANDLER =====
-function checkSharedUrl() {
+async function checkSharedUrl() {
   const hash = location.hash;
   if (!hash.startsWith('#share=')) return;
   try {
-    const payload = JSON.parse(decodeURIComponent(escape(atob(hash.slice(7)))));
+    const raw = hash.slice(7);
+    let json;
+    // 新形式（圧縮）を試み、失敗したら旧形式（素のbase64）にフォールバック
+    try {
+      json = await decompressFromBase64(raw);
+    } catch(e) {
+      json = decodeURIComponent(escape(atob(raw)));
+    }
+    const payload = JSON.parse(json);
     if (Date.now() > payload.expires) {
       document.getElementById('shared-content').innerHTML = `<div class="empty-state" style="padding:80px"><svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p style="font-size:16px;margin-top:8px">このURLは有効期限切れです</p></div>`;
       document.getElementById('shared-title').textContent = '有効期限切れ';
@@ -1983,4 +2015,3 @@ document.addEventListener('click', e => {
 </script>
 </body>
 </html>
-                                                                  
