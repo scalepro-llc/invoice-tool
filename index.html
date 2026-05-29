@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>請求書・領収書作成ツール</title>
+<style>
+  :root {
+    --primary: #1a56db;
+    --primary-dark: #1e429f;
+    --success: #0e9f6e;
+    --danger: #f05252;
+    --bg: #f9fafb;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --input-bg: #f3f4f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  /* ===== LAYOUT ===== */
+  #app { display: flex; height: 100vh; overflow: hidden; }
+  #sidebar { width: 230px; background: #1e2840; color: #c8d0e0; flex-shrink: 0; display: flex; flex-direction: column; }
+  #main { flex: 1; overflow-y: auto; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar-logo { padding: 18px 16px 14px; border-bottom: 1px solid #2d3a52; }
+  .sidebar-logo h1 { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.4; }
+  .sidebar-logo p { font-size: 10px; color: #8899bb; margin-top: 2px; }
+
+  /* Active profile pill */
+  .profile-switcher { padding: 10px 12px; border-bottom: 1px solid #2d3a52; }
+  .profile-switcher-label { font-size: 10px; color: #556a90; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .profile-pill { display: flex; align-items: center; justify-content: space-between; background: #2d3a52; border-radius: 8px; padding: 8px 10px; gap: 8px; }
+  .profile-pill-name { font-size: 13px; color: #fff; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-pill-btn { background: none; border: 1px solid #556a90; border-radius: 5px; color: #8899bb; font-size: 11px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+  .profile-pill-btn:hover { background: #3d4f6e; color: #fff; }
+
+  .sidebar-nav { padding: 10px 8px; flex: 1; overflow-y: auto; }
+  .nav-section { font-size: 10px; color: #556a90; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 8px 4px; }
+  .nav-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: none; background: none; color: #c8d0e0; border-radius: 6px; cursor: pointer; font-size: 13px; text-align: left; transition: background 0.15s; }
+  .nav-btn:hover { background: #2d3a52; }
+  .nav-btn.active { background: var(--primary); color: #fff; }
+  .nav-btn svg { flex-shrink: 0; }
+
+  /* ===== MAIN HEADER ===== */
+  .page-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .page-title { font-size: 18px; font-weight: 700; }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ===== BUTTONS ===== */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover { background: #057a55; }
+  .btn-outline { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--bg); }
+  .btn-danger-outline { background: #fff; color: var(--danger); border: 1px solid #fca5a5; }
+  .btn-danger-outline:hover { background: #fef2f2; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-icon { padding: 6px 8px; border-radius: 4px; font-size: 12px; }
+
+  /* ===== FORM LAYOUT ===== */
+  .content { padding: 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .card-header { padding: 13px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: #fafbfc; }
+  .card-header h3 { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .card-body { padding: 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .span-2 { grid-column: span 2; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--card); color: var(--text); outline: none; transition: border 0.15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+  textarea { resize: vertical; }
+
+  /* ===== LINE ITEMS ===== */
+  .items-table { width: 100%; border-collapse: collapse; }
+  .items-table th { background: #f3f4f6; padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .items-table td { padding: 5px 5px; border-top: 1px solid var(--border); vertical-align: middle; }
+  .items-table tr:first-child td { border-top: none; }
+  .items-table input, .items-table select { background: var(--input-bg); padding: 6px 8px; }
+  .col-name { min-width: 180px; }
+  .col-qty { width: 70px; }
+  .col-unit { width: 70px; }
+  .col-price { width: 150px; }
+  .col-tax { width: 88px; }
+  .col-total { width: 130px; text-align: right; font-weight: 500; padding-right: 10px !important; }
+  .col-del { width: 36px; text-align: center; }
+
+  /* 税込/税抜 toggle */
+  .price-cell { display: flex; flex-direction: column; gap: 3px; }
+  .price-cell input { width: 100%; }
+  .price-type-toggle { display: flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; font-size: 10px; }
+  .price-type-toggle button { flex: 1; padding: 2px 0; border: none; background: #f3f4f6; color: var(--muted); cursor: pointer; font-size: 10px; line-height: 1.4; transition: all 0.1s; }
+  .price-type-toggle button.on-ex { background: #1a56db; color: #fff; font-weight: 700; }
+  .price-type-toggle button.on-in { background: #f59e0b; color: #fff; font-weight: 700; }
+  .incl-hint { font-size: 10px; color: #9ca3af; text-align: right; margin-top: 1px; }
+  .badge-incl { font-size: 9px; background: #fef3c7; color: #b45309; border-radius: 3px; padding: 1px 4px; font-weight: 700; vertical-align: middle; }
+  .badge-excl { font-size: 9px; background: #e0f2fe; color: #0369a1; border-radius: 3px; padding: 1px 4px; font-weight: 700; vertical-align: middle; }
+
+  /* ===== TOTALS ===== */
+  .totals-block { display: flex; justify-content: flex-end; margin-top: 20px; }
+  .totals-table { width: 320px; }
+  .totals-table td { padding: 5px 10px; font-size: 13px; }
+  .totals-table td:last-child { text-align: right; font-weight: 500; }
+  .totals-table .total-row td { font-size: 16px; font-weight: 700; border-top: 2px solid var(--text); padding-top: 8px; }
+  .tax-note-8 { font-size: 10px; color: var(--muted); }
+
+  /* ===== PROFILE LIST ===== */
+  .profile-list { display: flex; flex-direction: column; gap: 10px; }
+  .profile-card { background: var(--card); border: 2px solid var(--border); border-radius: 10px; padding: 16px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; transition: border 0.15s; }
+  .profile-card.is-active { border-color: var(--primary); background: #eff6ff; }
+  .profile-card-info { flex: 1; }
+  .profile-card-name { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .profile-card-detail { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.6; }
+  .profile-card-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .active-badge { background: var(--primary); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 28px; width: 520px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .modal p { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .modal .grid-2 { margin-bottom: 14px; }
+  .url-box { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 12px; word-break: break-all; color: var(--primary); margin-bottom: 16px; max-height: 80px; overflow-y: auto; }
+  .expiry-options { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .expiry-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 20px; background: #fff; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .expiry-btn.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  .modal-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* ===== FILTER TABS ===== */
+  .filter-section { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; }
+  .filter-row { display: flex; align-items: center; gap: 0; overflow-x: auto; }
+  .filter-row::-webkit-scrollbar { height: 3px; }
+  .filter-row::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .tab-btn { padding: 12px 16px; border: none; background: none; font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .tab-btn:hover { color: var(--text); background: #f9fafb; }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .tab-count { background: #e5e7eb; color: var(--muted); font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+  .tab-btn.active .tab-count { background: #dbeafe; color: var(--primary); }
+  .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .type-tabs { display: flex; border-top: 1px solid var(--border); padding: 8px 24px; gap: 6px; background: #f9fafb; }
+  .type-tab { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; cursor: pointer; background: #fff; color: var(--muted); transition: all 0.12s; }
+  .type-tab:hover { border-color: var(--primary); color: var(--primary); }
+  .type-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+
+  /* summary bar */
+  .list-summary { display: flex; gap: 16px; margin-bottom: 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .list-summary span { font-weight: 600; color: var(--text); }
+
+  /* ===== LIST VIEW ===== */
+  .doc-list { display: flex; flex-direction: column; gap: 8px; }
+  .doc-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: border 0.15s; }
+  .doc-item:hover { border-color: var(--primary); }
+  .doc-item-info { flex: 1; }
+  .doc-item-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .doc-item-meta { font-size: 12px; color: var(--muted); }
+  .doc-item-amount { font-size: 16px; font-weight: 700; color: var(--primary); margin-right: 16px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-purple { background: #ede9fe; color: #6d28d9; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state svg { margin-bottom: 12px; opacity: 0.3; }
+  .empty-state p { font-size: 14px; line-height: 1.8; }
+
+  /* ===== TOAST ===== */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #111; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ===== PRINT ===== */
+  @media print {
+    #app { display: block; height: auto; }
+    #sidebar, .page-header, .no-print { display: none !important; }
+    #main { overflow: visible; }
+    .content { padding: 0; }
+    body { background: #fff; }
+  }
+
+  /* ===== PREVIEW PAPER ===== */
+  .preview-paper { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 40px 48px; max-width: 700px; margin: 0 auto; }
+  .preview-paper .doc-title { font-size: 28px; font-weight: 800; text-align: center; margin-bottom: 24px; letter-spacing: 0.1em; }
+  .preview-paper .doc-meta { display: flex; justify-content: space-between; margin-bottom: 24px; font-size: 13px; align-items: flex-start; }
+  .preview-paper .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .preview-paper .party-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .preview-paper .party-name { font-size: 16px; font-weight: 700; border-bottom: 2px solid var(--text); padding-bottom: 4px; margin-bottom: 6px; }
+  .preview-paper .party-detail { font-size: 12px; color: var(--muted); line-height: 1.6; white-space: pre-line; }
+  .preview-paper .preview-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+  .preview-paper .preview-table th { background: var(--text); color: #fff; padding: 8px 10px; text-align: left; }
+  .preview-paper .preview-table th:last-child { text-align: right; }
+  .preview-paper .preview-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .preview-paper .preview-table td:last-child { text-align: right; font-weight: 500; }
+  .preview-paper .preview-totals { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+  .preview-paper .preview-totals table { width: 280px; font-size: 13px; border-collapse: collapse; }
+  .preview-paper .preview-totals td { padding: 4px 8px; }
+  .preview-paper .preview-totals td:last-child { text-align: right; }
+  .preview-paper .preview-totals .grand-total td { font-size: 17px; font-weight: 800; border-top: 2px solid var(--text); padding-top: 8px; }
+  .preview-paper .notes-section { border-top: 1px solid var(--border); padding-top: 16px; font-size: 12px; color: var(--muted); }
+  .preview-paper .seal-area { text-align: right; }
+  .preview-paper .seal-box { display: inline-block; border: 2px solid #ccc; border-radius: 50%; width: 60px; height: 60px; line-height: 58px; text-align: center; font-size: 11px; color: #ccc; }
+
+  /* issuer select in edit form */
+  .issuer-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .issuer-selector label { margin: 0; white-space: nowrap; }
+  .issuer-selector select { flex: 1; }
+
+  /* ===== CLIENT AUTOCOMPLETE ===== */
+  .client-name-wrap { position: relative; }
+  .client-suggest { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--primary); border-top: none; border-radius: 0 0 8px 8px; z-index: 50; max-height: 220px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  .client-suggest-item { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .client-suggest-item:last-child { border-bottom: none; }
+  .client-suggest-item:hover, .client-suggest-item.focused { background: #eff6ff; }
+  .client-suggest-name { font-weight: 600; font-size: 13px; }
+  .client-suggest-detail { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .client-field-row { display: flex; gap: 6px; align-items: flex-end; }
+  .client-field-row input { flex: 1; }
+  .client-pick-btn { flex-shrink: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: #f9fafb; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .client-pick-btn:hover { background: #eff6ff; border-color: var(--primary); color: var(--primary); }
+
+  /* ===== CLIENT MASTER LIST ===== */
+  .client-list { display: flex; flex-direction: column; gap: 6px; }
+  .client-row { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  .client-row:hover { border-color: var(--primary); }
+  .client-row-info { flex: 1; }
+  .client-row-name { font-weight: 600; font-size: 13px; }
+  .client-row-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .client-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* ===== ITEM MASTER ===== */
+  .item-master-list { display: flex; flex-direction: column; gap: 6px; }
+  .item-master-row { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  .item-master-row:hover { border-color: var(--primary); }
+  .item-master-info { flex: 1; }
+  .item-master-name { font-weight: 600; font-size: 13px; }
+  .item-master-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .item-master-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* ===== ITEM PICKER MODAL ===== */
+  .picker-search { width: 100%; margin-bottom: 12px; }
+  .picker-list { max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+  .picker-item { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.12s; }
+  .picker-item:hover { border-color: var(--primary); background: #eff6ff; }
+  .picker-item-name { font-weight: 600; font-size: 13px; }
+  .picker-item-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* name cell with picker button */
+  .name-cell { display: flex; gap: 4px; align-items: center; }
+  .name-cell input { flex: 1; min-width: 0; }
+  .pick-btn { flex-shrink: 0; padding: 5px 7px; font-size: 13px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; cursor: pointer; line-height: 1; }
+  .pick-btn:hover { background: #dbeafe; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-logo">
+      <h1>📄 請求書・領収書<br>作成ツール</h1>
+      <p>Invoice &amp; Receipt Maker</p>
+    </div>
+
+    <!-- Active profile switcher -->
+    <div class="profile-switcher">
+      <div class="profile-switcher-label">現在の発行者</div>
+      <div class="profile-pill">
+        <span class="profile-pill-name" id="active-profile-name">未設定</span>
+        <button class="profile-pill-btn" onclick="showView('profiles')">切替</button>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">書類</div>
+      <button class="nav-btn active" id="nav-list" onclick="showView('list')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        書類一覧
+      </button>
+      <button class="nav-btn" onclick="newDoc('invoice')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        新規 請求書
+      </button>
+      <button class="nav-btn" onclick="newDoc('receipt')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 12 2 2 4-4"/></svg>
+        新規 領収書
+      </button>
+      <div class="nav-section" style="margin-top:8px">設定</div>
+      <button class="nav-btn" id="nav-clients" onclick="showView('clients')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        得意先マスタ
+      </button>
+      <button class="nav-btn" id="nav-items" onclick="showView('items')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        品目マスタ
+      </button>
+      <button class="nav-btn" id="nav-profiles" onclick="showView('profiles')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        発行者プロフィール
+      </button>
+    </nav>
+    <!-- DATA MANAGEMENT FOOTER -->
+    <div style="padding:10px 8px;border-top:1px solid #2d3a52">
+      <button class="nav-btn" onclick="openDataModal()" style="font-size:12px;color:#8899bb">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        データ管理（エクスポート/インポート）
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- LIST VIEW -->
+    <div id="view-list" style="display:block">
+      <div class="page-header">
+        <div class="page-title">書類一覧</div>
+        <div class="header-actions">
+          <button class="btn btn-outline" onclick="newDoc('invoice')">＋ 請求書</button>
+          <button class="btn btn-primary" onclick="newDoc('receipt')">＋ 領収書</button>
+        </div>
+      </div>
+      <!-- 発行者タブ -->
+      <div class="filter-section">
+        <div class="filter-row" id="profile-tabs"></div>
+      </div>
+      <!-- 種別タブ -->
+      <div class="type-tabs" id="type-tabs"></div>
+      <div class="content">
+        <div class="list-summary" id="list-summary"></div>
+        <div id="doc-list" class="doc-list"></div>
+      </div>
+    </div>
+
+    <!-- EDIT VIEW -->
+    <div id="view-edit" style="display:none">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-outline btn-sm" onclick="showView('list')">← 戻る</button>
+          <div class="page-title" id="edit-title">請求書を作成</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline" id="convert-btn" onclick="convertToReceipt()" style="display:none">🔄 領収書に変換</button>
+          <button class="btn btn-outline" onclick="previewDoc()">👁 プレビュー</button>
+          <button class="btn btn-outline" onclick="openUrlModal()">🔗 URL発行</button>
+          <button class="btn btn-success" onclick="saveDoc()">💾 保存</button>
+          <button class="btn btn-primary" onclick="printDoc()">🖨 PDF印刷</button>
+        </div>
+      </div>
+      <div class="content" id="edit-form"></div>
+    </div>
+
+    <!-- PREVIEW VIEW -->
+    <div id="view-preview" style="display:none">
+      <div class="page-header no-print">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-outline btn-sm" onclick="backToEdit()">← 編集に戻る</button>
+          <div class="page-title" id="preview-title">プレビュー</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline" onclick="openUrlModal()">🔗 URL発行</button>
+          <button class="btn btn-primary" onclick="printDoc()">🖨 PDF印刷</button>
+        </div>
+      </div>
+      <div class="content" id="preview-content" style="max-width:760px;margin:0 auto;"></div>
+    </div>
+
+    <!-- CLIENT MASTER VIEW -->
+    <div id="view-clients" style="display:none">
+      <div class="page-header">
+        <div class="page-title">得意先マスタ</div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="openClientModal(null)">＋ 得意先を追加</button>
+        </div>
+      </div>
+      <div class="content">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">書類を保存すると請求先が自動で登録されます。次回から名前の入力中にサジェストが表示されます。</p>
+        <div id="client-list" class="client-list"></div>
+      </div>
+    </div>
+
+    <!-- ITEMS MASTER VIEW -->
+    <div id="view-items" style="display:none">
+      <div class="page-header">
+        <div class="page-title">品目マスタ</div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="openItemModal(null)">＋ 品目を追加</button>
+        </div>
+      </div>
+      <div class="content">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:16px">よく使う品目・サービスを登録しておくと、明細入力時にワンクリックで呼び出せます。</p>
+        <div id="item-master-list" class="item-master-list"></div>
+      </div>
+    </div>
+
+    <!-- PROFILES VIEW -->
+    <div id="view-profiles" style="display:none">
+      <div class="page-header">
+        <div class="page-title">発行者プロフィール</div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="openProfileModal(null)">＋ プロフィールを追加</button>
+        </div>
+      </div>
+      <div class="content">
+        <div id="profile-list" class="profile-list"></div>
+      </div>
+    </div>
+
+    <!-- SHARED VIEW -->
+    <div id="view-shared" style="display:none">
+      <div class="page-header no-print">
+        <div class="page-title" id="shared-title">共有書類</div>
+        <div class="header-actions no-print">
+          <button class="btn btn-primary" onclick="window.print()">🖨 PDF印刷</button>
+        </div>
+      </div>
+      <div class="content" id="shared-content" style="max-width:760px;margin:0 auto;"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- URL MODAL -->
+<div class="modal-overlay" id="url-modal">
+  <div class="modal">
+    <h2>🔗 共有URLを発行</h2>
+    <p>有効期限を選択してURLを生成します。URLを開くと書類がブラウザで表示されます。</p>
+    <div class="expiry-options">
+      <button class="expiry-btn" onclick="selectExpiry(7)">7日間</button>
+      <button class="expiry-btn selected" onclick="selectExpiry(30)">30日間</button>
+      <button class="expiry-btn" onclick="selectExpiry(90)">90日間</button>
+      <button class="expiry-btn" onclick="selectExpiry(180)">180日間</button>
+      <button class="expiry-btn" onclick="selectExpiry(365)">1年間</button>
+    </div>
+    <div id="url-display" class="url-box" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeUrlModal()">閉じる</button>
+      <button class="btn btn-primary" onclick="generateUrl()">URLを生成</button>
+      <button class="btn btn-success" id="copy-btn" style="display:none" onclick="copyUrl()">📋 コピー</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE EDIT MODAL -->
+<div class="modal-overlay" id="profile-modal">
+  <div class="modal">
+    <h2 id="profile-modal-title">プロフィールを追加</h2>
+    <input type="hidden" id="pm-id" />
+    <div class="grid-2">
+      <div><label>会社名 / 屋号 / 氏名 <span style="color:red">*</span></label><input id="pm-name" placeholder="株式会社〇〇 / 山田太郎" /></div>
+      <div><label>登録番号（インボイス）</label><input id="pm-invoiceno" placeholder="T1234567890123" /></div>
+      <div><label>郵便番号</label><input id="pm-zip" placeholder="〒100-0001" /></div>
+      <div><label>住所</label><input id="pm-address" placeholder="東京都千代田区…" /></div>
+      <div><label>電話番号</label><input id="pm-tel" placeholder="03-1234-5678" /></div>
+      <div><label>メールアドレス</label><input id="pm-email" placeholder="info@example.com" /></div>
+      <div class="span-2"><label>銀行口座情報</label><textarea id="pm-bank" rows="3" placeholder="○○銀行 △△支店&#10;普通 1234567&#10;口座名義: カ）サンプル"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeProfileModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveProfile()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- DATA MANAGEMENT MODAL -->
+<div class="modal-overlay" id="data-modal">
+  <div class="modal" style="width:500px">
+    <h2>📦 データ管理</h2>
+
+    <!-- EXPORT -->
+    <div style="background:#f0fdf4;border:1px solid #6ee7b7;border-radius:8px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;margin-bottom:6px">📤 エクスポート（バックアップ・別端末への移行）</div>
+      <p style="margin-bottom:10px">書類・得意先・品目・プロフィールをすべてJSONファイルに保存します。</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-success" onclick="exportAllData()">💾 全データをエクスポート</button>
+        <button class="btn btn-outline" onclick="exportToolOnly()">🔗 ツールだけのHTMLを保存<br><span style="font-size:10px;font-weight:400">（データなし・他の人に渡す用）</span></button>
+      </div>
+    </div>
+
+    <!-- IMPORT -->
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:700;margin-bottom:6px">📥 インポート（別端末からのデータ復元）</div>
+      <p style="margin-bottom:10px">エクスポートしたJSONファイルを読み込みます。</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="btn btn-primary" style="cursor:pointer">
+          📂 JSONファイルを選択
+          <input type="file" accept=".json" onchange="importData(this)" style="display:none" />
+        </label>
+        <div id="import-status" style="font-size:12px;color:var(--muted)"></div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#6b7280">
+        ⚠ 既存のデータに<strong>追加</strong>されます。重複する書類番号は上書きされません。
+      </div>
+    </div>
+
+    <!-- CLEAR -->
+    <details style="margin-bottom:4px">
+      <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none">⚠ 全データを削除（リセット）</summary>
+      <div style="margin-top:10px;padding:12px;background:#fef2f2;border-radius:6px;border:1px solid #fca5a5">
+        <p style="font-size:12px;color:#dc2626;margin-bottom:8px">このブラウザに保存されているすべての書類・得意先・品目・プロフィールが削除されます。元に戻せません。</p>
+        <button class="btn btn-danger-outline btn-sm" onclick="clearAllData()">完全に削除する</button>
+      </div>
+    </details>
+
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeDataModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT EDIT MODAL -->
+<div class="modal-overlay" id="client-modal">
+  <div class="modal" style="width:460px">
+    <h2 id="client-modal-title">得意先を追加</h2>
+    <input type="hidden" id="cm-id" />
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><label>会社名 / 氏名 <span style="color:red">*</span></label><input id="cm-name" placeholder="株式会社〇〇 / 山田様" /></div>
+      <div><label>担当者</label><input id="cm-attn" placeholder="営業部 田中様" /></div>
+      <div class="grid-2">
+        <div><label>郵便番号</label><input id="cm-zip" placeholder="〒100-0001" /></div>
+        <div><label>住所</label><input id="cm-address" placeholder="東京都千代田区…" /></div>
+      </div>
+      <div><label>メモ（内部用）</label><input id="cm-memo" placeholder="任意のメモ" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeClientModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveClientManual()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT PICKER MODAL -->
+<div class="modal-overlay" id="client-picker-modal">
+  <div class="modal" style="width:480px">
+    <h2>👤 得意先を選択</h2>
+    <input id="cpicker-search" style="width:100%;margin-bottom:12px" placeholder="会社名で検索…" oninput="renderClientPickerList()" />
+    <div id="cpicker-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn btn-outline" onclick="closeClientPicker()">キャンセル</button>
+      <button class="btn btn-outline btn-sm" onclick="openClientModal(null);closeClientPicker()">＋ 新規登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- ITEM EDIT MODAL -->
+<div class="modal-overlay" id="item-modal">
+  <div class="modal" style="width:460px">
+    <h2 id="item-modal-title">品目を追加</h2>
+    <input type="hidden" id="im-id" />
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><label>品目名 <span style="color:red">*</span></label><input id="im-name" placeholder="Webサイト制作費 / コンサルティング料 など" /></div>
+      <div class="grid-2">
+        <div><label>標準単価（円）</label><input id="im-price" type="number" min="0" placeholder="50000" /></div>
+        <div><label>標準単位</label><input id="im-unit" placeholder="式 / 時間 / 個" /></div>
+      </div>
+      <div class="grid-2">
+        <div><label>税率</label>
+          <select id="im-tax">
+            <option value="10">10%（標準）</option>
+            <option value="8">8%（軽減税率）</option>
+            <option value="0">非課税</option>
+          </select>
+        </div>
+        <div><label>メモ（内部用）</label><input id="im-memo" placeholder="任意のメモ" /></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeItemModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveItem()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ITEM PICKER MODAL -->
+<div class="modal-overlay" id="item-picker-modal">
+  <div class="modal" style="width:480px">
+    <h2>📋 品目を選択</h2>
+    <input class="picker-search" id="picker-search" placeholder="品目名で検索…" oninput="renderPickerList()" />
+    <div class="picker-list" id="picker-list"></div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn btn-outline" onclick="closeItemPicker()">キャンセル</button>
+      <button class="btn btn-outline btn-sm" onclick="openItemModal(null);closeItemPicker()">＋ 新規品目を追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== STATE =====
+let docs = JSON.parse(localStorage.getItem('invoice_docs') || '[]');
+let profiles = JSON.parse(localStorage.getItem('invoice_profiles') || '[]');
+let itemMaster = JSON.parse(localStorage.getItem('invoice_items') || '[]');
+let clientMaster = JSON.parse(localStorage.getItem('invoice_clients') || '[]');
+let activeProfileId = localStorage.getItem('invoice_active_profile') || null;
+let currentDoc = null;
+let currentView = 'list';
+let selectedExpiry = 30;
+let generatedUrl = '';
+let pickerTargetRow = -1;
+let filterProfile = '';   // '' = all, or profileId
+let filterType = '';      // '' = all, 'invoice', 'receipt'
+
+// ===== MIGRATION: old single settings → profile =====
+(function migrate() {
+  const old = localStorage.getItem('invoice_settings');
+  if (old && profiles.length === 0) {
+    try {
+      const s = JSON.parse(old);
+      if (s.name) {
+        const p = { id: uid(), ...s };
+        profiles.push(p);
+        activeProfileId = p.id;
+        localStorage.setItem('invoice_profiles', JSON.stringify(profiles));
+        localStorage.setItem('invoice_active_profile', activeProfileId);
+      }
+    } catch(e) {}
+  }
+})();
+
+// ===== UTILS =====
+function fmt(n) { return Number(n||0).toLocaleString('ja-JP'); }
+function fmtYen(n) { return '¥' + fmt(n); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function today() { return new Date().toISOString().slice(0,10); }
+function toast(msg, duration=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+function escape_html(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getActiveProfile() {
+  return profiles.find(p => p.id === activeProfileId) || profiles[0] || {};
+}
+function setActiveProfile(id) {
+  activeProfileId = id;
+  localStorage.setItem('invoice_active_profile', id);
+  updateSidebarProfile();
+}
+function updateSidebarProfile() {
+  const p = getActiveProfile();
+  document.getElementById('active-profile-name').textContent = p.name || '未設定';
+}
+
+// ===== NAVIGATION =====
+function showView(v) {
+  ['list','edit','preview','clients','items','profiles','shared'].forEach(n => {
+    document.getElementById('view-'+n).style.display = n===v ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (v==='list') document.getElementById('nav-list').classList.add('active');
+  if (v==='clients') document.getElementById('nav-clients').classList.add('active');
+  if (v==='items') document.getElementById('nav-items').classList.add('active');
+  if (v==='profiles') document.getElementById('nav-profiles').classList.add('active');
+  currentView = v;
+  if (v==='list') { renderFilterTabs(); renderDocList(); }
+  if (v==='clients') renderClientList();
+  if (v==='items') renderItemMasterList();
+  if (v==='profiles') renderProfileList();
+}
+function backToEdit() { showView('edit'); }
+
+// ===== NEW DOC =====
+function newDoc(type) {
+  if (profiles.length === 0) {
+    toast('⚠ 先に発行者プロフィールを追加してください');
+    openProfileModal(null);
+    return;
+  }
+  const profile = getActiveProfile();
+  currentDoc = {
+    id: uid(),
+    type,
+    number: autoNumber(type),
+    date: today(),
+    dueDate: type==='invoice' ? dueDateDefault() : '',
+    paymentDate: type==='receipt' ? today() : '',
+    client: { name:'', zip:'', address:'', attn:'' },
+    items: [{ name:'', qty:1, unit:'式', price:0, tax:10 }],
+    notes: '',
+    profileId: profile.id,
+    receiptPurpose: type==='receipt' ? '' : undefined,
+    receiptPaymentMethod: type==='receipt' ? '現金' : undefined,
+  };
+  renderEditForm();
+  showView('edit');
+  document.getElementById('edit-title').textContent = type==='invoice' ? '請求書を作成' : '領収書を作成';
+}
+
+function autoNumber(type) {
+  const prefix = type==='invoice' ? 'INV' : 'REC';
+  const year = new Date().getFullYear();
+  const count = docs.filter(d=>d.type===type).length + 1;
+  return `${prefix}-${year}-${String(count).padStart(3,'0')}`;
+}
+function dueDateDefault() {
+  const d = new Date(); d.setDate(d.getDate()+30);
+  return d.toISOString().slice(0,10);
+}
+
+// ===== EDIT FORM =====
+function renderEditForm() {
+  const d = currentDoc;
+  const isInvoice = d.type==='invoice';
+  const profileOptions = profiles.map(p =>
+    `<option value="${p.id}" ${p.id===d.profileId?'selected':''}>${escape_html(p.name)}</option>`
+  ).join('');
+  const selProfile = profiles.find(p=>p.id===d.profileId) || profiles[0] || {};
+
+  document.getElementById('edit-form').innerHTML = `
+    <div class="card">
+      <div class="card-header"><h3>${isInvoice?'請求書':'領収書'}情報</h3></div>
+      <div class="card-body">
+        <div class="grid-3">
+          <div><label>${isInvoice?'請求書番号':'領収書番号'}</label><input id="f-number" value="${escape_html(d.number)}" /></div>
+          <div><label>発行日</label><input id="f-date" type="date" value="${d.date}" /></div>
+          ${isInvoice
+            ? `<div><label>支払期限</label><input id="f-duedate" type="date" value="${d.dueDate}" /></div>`
+            : `<div><label>入金日</label><input id="f-paydate" type="date" value="${d.paymentDate}" /></div>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="gap:16px">
+      <div class="card">
+        <div class="card-header"><h3>請求先 / 受取人</h3></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label>会社名 / 氏名 <span style="color:red">*</span></label>
+            <div class="client-field-row">
+              <div class="client-name-wrap" style="flex:1;position:relative">
+                <input id="c-name" value="${escape_html(d.client.name)}" placeholder="株式会社〇〇" autocomplete="off"
+                  oninput="clientSuggest(this.value)" onkeydown="clientSuggestKey(event)" onfocus="clientSuggest(this.value)" />
+                <div id="client-suggest-box" class="client-suggest" style="display:none"></div>
+              </div>
+              <button class="client-pick-btn" type="button" onclick="openClientPicker()" title="得意先一覧から選択">👤 選択</button>
+            </div>
+          </div>
+          <div><label>担当者</label><input id="c-attn" value="${escape_html(d.client.attn)}" placeholder="営業部 田中様" /></div>
+          <div><label>郵便番号</label><input id="c-zip" value="${escape_html(d.client.zip)}" placeholder="〒100-0001" /></div>
+          <div><label>住所</label><input id="c-address" value="${escape_html(d.client.address)}" placeholder="東京都〇〇区…" /></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>発行者</h3>
+          <button class="btn btn-outline btn-sm" onclick="openProfileModal(null)" title="新規追加">＋ プロフィール追加</button>
+        </div>
+        <div class="card-body">
+          <div class="issuer-selector">
+            <label>プロフィール選択</label>
+            <select id="si-profile" onchange="onIssuerProfileChange(this.value)">${profileOptions}</select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div><label>会社名 / 氏名</label><input id="si-name" value="${escape_html(selProfile.name||'')}" /></div>
+            <div><label>登録番号</label><input id="si-invoiceno" value="${escape_html(selProfile.invoiceNo||'')}" /></div>
+            <div><label>住所</label><input id="si-address" value="${escape_html(selProfile.address||'')}" /></div>
+            <div><label>電話番号</label><input id="si-tel" value="${escape_html(selProfile.tel||'')}" /></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${isInvoice ? '' : `
+    <div class="card">
+      <div class="card-header"><h3>領収書 詳細</h3></div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div><label>但し書き（使途）</label><input id="f-purpose" value="${escape_html(d.receiptPurpose||'')}" placeholder="〇〇代として" /></div>
+          <div><label>支払方法</label>
+            <select id="f-payment">
+              ${['現金','振込','クレジット','その他'].map(m=>`<option ${d.receiptPaymentMethod===m?'selected':''}>${m}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    `}
+
+    <div class="card">
+      <div class="card-header">
+        <h3>明細</h3>
+        <button class="btn btn-outline btn-sm" onclick="addItem()">＋ 行を追加</button>
+      </div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table class="items-table">
+          <thead><tr>
+            <th class="col-name">品目・摘要</th>
+            <th class="col-qty">数量</th>
+            <th class="col-unit">単位</th>
+            <th class="col-price">単価 <span style="font-weight:400;font-size:10px;color:#9ca3af">税抜/税込</span></th>
+            <th class="col-tax">税率</th>
+            <th class="col-total">金額</th>
+            <th class="col-del"></th>
+          </tr></thead>
+          <tbody id="items-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="totals-block"><table class="totals-table" id="totals-table"></table></div>
+
+    <div class="card">
+      <div class="card-header"><h3>備考</h3></div>
+      <div class="card-body">
+        <textarea id="f-notes" rows="4" placeholder="振込先や備考など…">${escape_html(d.notes)}</textarea>
+        ${isInvoice ? `<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="insertBank()">銀行口座を挿入</button>` : ''}
+      </div>
+    </div>
+  `;
+  renderItems();
+  // 請求書のみ変換ボタンを表示
+  const cb = document.getElementById('convert-btn');
+  if (cb) cb.style.display = d.type === 'invoice' ? 'inline-flex' : 'none';
+}
+
+function onIssuerProfileChange(pid) {
+  const p = profiles.find(pr=>pr.id===pid) || {};
+  currentDoc.profileId = pid;
+  document.getElementById('si-name').value = p.name || '';
+  document.getElementById('si-invoiceno').value = p.invoiceNo || '';
+  document.getElementById('si-address').value = p.address || '';
+  document.getElementById('si-tel').value = p.tel || '';
+}
+
+function addItem() {
+  collectFormData();
+  currentDoc.items.push({ name:'', qty:1, unit:'式', price:0, tax:10 });
+  renderItems();
+}
+function removeItem(i) {
+  if (currentDoc.items.length===1) return toast('明細は1行以上必要です');
+  collectFormData();
+  currentDoc.items.splice(i,1);
+  renderItems();
+}
+// helper: back-calc tax-exclusive amount from tax-inclusive
+function inclToExcl(totalIncl, taxRate) {
+  if (taxRate === 0) return totalIncl;
+  return Math.floor(totalIncl / (1 + taxRate / 100));
+}
+// per-item display total (always returns {excl, incl})
+function itemAmounts(item) {
+  const qty = item.qty || 0;
+  const price = item.price || 0;
+  const rate = Number(item.tax) || 0;
+  const pType = item.priceType || 'ex';
+  if (pType === 'in') {
+    const totalIncl = qty * price;
+    const totalExcl = inclToExcl(totalIncl, rate);
+    return { excl: totalExcl, incl: totalIncl };
+  } else {
+    const totalExcl = qty * price;
+    const tax = rate === 10 ? Math.floor(totalExcl * 0.1)
+               : rate === 8  ? Math.floor(totalExcl * 0.08) : 0;
+    return { excl: totalExcl, incl: totalExcl + tax };
+  }
+}
+
+function renderItems() {
+  const tbody = document.getElementById('items-body');
+  if (!tbody) return;
+  tbody.innerHTML = currentDoc.items.map((item,i) => {
+    const pType = item.priceType || 'ex';
+    const isIncl = pType === 'in';
+    const amt = itemAmounts(item);
+    const backCalcHint = isIncl && item.tax > 0
+      ? `<div class="incl-hint">税抜: ${fmtYen(inclToExcl(item.price||0, Number(item.tax)||0))}/単位</div>` : '';
+    return `<tr>
+      <td class="col-name"><div class="name-cell"><input value="${escape_html(item.name)}" oninput="updateItem(${i},'name',this.value)" placeholder="商品・サービス名" /><button class="pick-btn" onclick="openItemPicker(${i})" title="品目マスタから選択">📋</button></div></td>
+      <td class="col-qty"><input type="number" min="0" step="0.01" value="${item.qty}" oninput="updateItem(${i},'qty',this.value)" style="text-align:right" /></td>
+      <td class="col-unit"><input value="${escape_html(item.unit)}" oninput="updateItem(${i},'unit',this.value)" /></td>
+      <td class="col-price">
+        <div class="price-cell">
+          <input type="number" min="0" step="1" value="${item.price}" oninput="updateItem(${i},'price',this.value)" style="text-align:right" />
+          <div class="price-type-toggle">
+            <button class="${!isIncl?'on-ex':''}" onclick="updateItem(${i},'priceType','ex')">税抜</button>
+            <button class="${isIncl?'on-in':''}" onclick="updateItem(${i},'priceType','in')">税込</button>
+          </div>
+          ${backCalcHint}
+        </div>
+      </td>
+      <td class="col-tax">
+        <select onchange="updateItem(${i},'tax',this.value)">
+          <option value="10" ${item.tax==10?'selected':''}>10%</option>
+          <option value="8" ${item.tax==8?'selected':''}>8%（軽減）</option>
+          <option value="0" ${item.tax==0?'selected':''}>非課税</option>
+        </select>
+      </td>
+      <td class="col-total" id="rowtotal-${i}">
+        ${isIncl
+          ? `${fmtYen(amt.incl)}<br><span class="badge-incl">税込</span>`
+          : `${fmtYen(amt.excl)}<br><span class="badge-excl">税抜</span>`}
+      </td>
+      <td class="col-del"><button class="btn btn-icon btn-danger-outline" onclick="removeItem(${i})" title="削除">✕</button></td>
+    </tr>`;
+  }).join('');
+  renderTotals();
+}
+function updateItem(i, field, val) {
+  if (field==='qty'||field==='price'||field==='tax') val = parseFloat(val)||0;
+  currentDoc.items[i][field] = val;
+  renderItems(); // full re-render to update hints and totals
+}
+function calcTotals() { return calcTotalsFrom(currentDoc); }
+function renderTotals() {
+  const t = calcTotals();
+  const table = document.getElementById('totals-table');
+  if (!table) return;
+  let html = `<tr><td>小計（税抜）</td><td>${fmtYen(t.sub)}</td></tr>`;
+  if (t.tax10>0) html += `<tr><td>消費税（10%）</td><td>${fmtYen(t.tax10)}</td></tr>`;
+  if (t.tax8>0) html += `<tr><td>消費税（8%）<span class="tax-note-8">※軽減税率</span></td><td>${fmtYen(t.tax8)}</td></tr>`;
+  html += `<tr class="total-row"><td>${currentDoc.type==='invoice'?'請求金額':'領収金額'}（税込）</td><td>${fmtYen(t.total)}</td></tr>`;
+  table.innerHTML = html;
+}
+function collectFormData() {
+  if (!currentDoc) return;
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  currentDoc.number = g('f-number');
+  currentDoc.date = g('f-date');
+  if (currentDoc.type==='invoice') currentDoc.dueDate = g('f-duedate');
+  else currentDoc.paymentDate = g('f-paydate');
+  currentDoc.client.name = g('c-name');
+  currentDoc.client.attn = g('c-attn');
+  currentDoc.client.zip = g('c-zip');
+  currentDoc.client.address = g('c-address');
+  currentDoc.profileId = g('si-profile') || currentDoc.profileId;
+  currentDoc.issuer = { name:g('si-name'), invoiceNo:g('si-invoiceno'), address:g('si-address'), tel:g('si-tel') };
+  currentDoc.notes = g('f-notes');
+  if (currentDoc.type==='receipt') {
+    currentDoc.receiptPurpose = g('f-purpose');
+    currentDoc.receiptPaymentMethod = g('f-payment');
+  }
+}
+function insertBank() {
+  const pid = document.getElementById('si-profile')?.value || currentDoc.profileId;
+  const p = profiles.find(pr=>pr.id===pid) || {};
+  const el = document.getElementById('f-notes');
+  if (el && p.bank) el.value = (el.value ? el.value+'\n\n':'') + '【振込先】\n' + p.bank;
+}
+
+// ===== CLIENT MASTER =====
+function autoSaveClient(client) {
+  if (!client || !client.name) return;
+  const existing = clientMaster.find(c => c.name === client.name);
+  if (existing) {
+    // 情報を更新（空でない場合のみ上書き）
+    if (client.attn) existing.attn = client.attn;
+    if (client.zip) existing.zip = client.zip;
+    if (client.address) existing.address = client.address;
+    existing.updatedAt = Date.now();
+  } else {
+    clientMaster.unshift({ id: uid(), name: client.name, attn: client.attn||'', zip: client.zip||'', address: client.address||'', memo:'', updatedAt: Date.now() });
+  }
+  localStorage.setItem('invoice_clients', JSON.stringify(clientMaster));
+}
+
+function renderClientList() {
+  const el = document.getElementById('client-list');
+  if (!el) return;
+  if (clientMaster.length === 0) {
+    el.innerHTML = `<div class="empty-state"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><p>得意先がまだありません<br>書類を保存すると自動で登録されます</p></div>`;
+    return;
+  }
+  el.innerHTML = clientMaster.map(c => {
+    const docCount = docs.filter(d => d.client.name === c.name).length;
+    return `<div class="client-row">
+      <div class="client-row-info">
+        <div class="client-row-name">${escape_html(c.name)}</div>
+        <div class="client-row-detail">
+          ${[c.attn, c.zip, c.address].filter(Boolean).map(escape_html).join('　·　')}
+          ${c.memo ? '　' + escape_html(c.memo) : ''}
+          <span style="color:#9ca3af">　書類数: ${docCount}件</span>
+        </div>
+      </div>
+      <div class="client-row-actions">
+        <button class="btn btn-outline btn-sm" onclick="openClientModal('${c.id}')">編集</button>
+        <button class="btn btn-danger-outline btn-sm" onclick="deleteClient('${c.id}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openClientModal(id) {
+  const c = id ? clientMaster.find(x=>x.id===id) : null;
+  document.getElementById('client-modal-title').textContent = c ? '得意先を編集' : '得意先を追加';
+  document.getElementById('cm-id').value = c?.id || '';
+  document.getElementById('cm-name').value = c?.name || '';
+  document.getElementById('cm-attn').value = c?.attn || '';
+  document.getElementById('cm-zip').value = c?.zip || '';
+  document.getElementById('cm-address').value = c?.address || '';
+  document.getElementById('cm-memo').value = c?.memo || '';
+  document.getElementById('client-modal').classList.add('open');
+}
+function closeClientModal() { document.getElementById('client-modal').classList.remove('open'); }
+
+function saveClientManual() {
+  const name = document.getElementById('cm-name').value.trim();
+  if (!name) { toast('⚠ 会社名/氏名を入力してください'); return; }
+  const existingId = document.getElementById('cm-id').value;
+  const data = { id: existingId || uid(), name, attn: document.getElementById('cm-attn').value, zip: document.getElementById('cm-zip').value, address: document.getElementById('cm-address').value, memo: document.getElementById('cm-memo').value, updatedAt: Date.now() };
+  if (existingId) { const idx = clientMaster.findIndex(c=>c.id===existingId); if(idx>=0) clientMaster[idx]=data; }
+  else clientMaster.unshift(data);
+  localStorage.setItem('invoice_clients', JSON.stringify(clientMaster));
+  closeClientModal();
+  if (currentView==='clients') renderClientList();
+  toast('✅ 得意先を保存しました');
+}
+
+function deleteClient(id) {
+  if (!confirm('この得意先を削除しますか？（書類は残ります）')) return;
+  clientMaster = clientMaster.filter(c=>c.id!==id);
+  localStorage.setItem('invoice_clients', JSON.stringify(clientMaster));
+  renderClientList();
+  toast('削除しました');
+}
+
+// ---- autocomplete ----
+let _suggestFocusIdx = -1;
+function clientSuggest(q) {
+  const box = document.getElementById('client-suggest-box');
+  if (!box) return;
+  const trimQ = (q||'').trim();
+  const matches = trimQ
+    ? clientMaster.filter(c => c.name.includes(trimQ) || (c.attn||'').includes(trimQ))
+    : clientMaster.slice(0, 8);
+  if (matches.length === 0) { box.style.display='none'; return; }
+  _suggestFocusIdx = -1;
+  box.innerHTML = matches.map((c,i) => `
+    <div class="client-suggest-item" data-idx="${i}" onmousedown="applyClientSuggest('${c.id}')">
+      <div class="client-suggest-name">${escape_html(c.name)}</div>
+      <div class="client-suggest-detail">${[c.attn,c.address].filter(Boolean).map(escape_html).join('　')}</div>
+    </div>
+  `).join('');
+  box._matches = matches;
+  box.style.display = 'block';
+}
+function clientSuggestKey(e) {
+  const box = document.getElementById('client-suggest-box');
+  if (!box || box.style.display==='none') return;
+  const items = box.querySelectorAll('.client-suggest-item');
+  if (e.key==='ArrowDown') { e.preventDefault(); _suggestFocusIdx=Math.min(_suggestFocusIdx+1,items.length-1); items.forEach((el,i)=>el.classList.toggle('focused',i===_suggestFocusIdx)); }
+  else if (e.key==='ArrowUp') { e.preventDefault(); _suggestFocusIdx=Math.max(_suggestFocusIdx-1,0); items.forEach((el,i)=>el.classList.toggle('focused',i===_suggestFocusIdx)); }
+  else if (e.key==='Enter' && _suggestFocusIdx>=0) { e.preventDefault(); const m=box._matches[_suggestFocusIdx]; if(m) applyClientSuggest(m.id); }
+  else if (e.key==='Escape') { box.style.display='none'; }
+}
+function applyClientSuggest(cid) {
+  const c = clientMaster.find(x=>x.id===cid);
+  if (!c) return;
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
+  set('c-name', c.name); set('c-attn', c.attn); set('c-zip', c.zip); set('c-address', c.address);
+  const box = document.getElementById('client-suggest-box');
+  if (box) box.style.display='none';
+}
+// close suggest when clicking outside
+document.addEventListener('click', e => {
+  const box = document.getElementById('client-suggest-box');
+  if (box && !box.contains(e.target) && e.target.id!=='c-name') box.style.display='none';
+});
+
+// ---- client picker modal ----
+function openClientPicker() {
+  if (clientMaster.length===0) { toast('得意先がまだ登録されていません。書類を保存すると自動で登録されます。'); return; }
+  document.getElementById('cpicker-search').value='';
+  renderClientPickerList();
+  document.getElementById('client-picker-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('cpicker-search').focus(), 80);
+}
+function closeClientPicker() { document.getElementById('client-picker-modal').classList.remove('open'); }
+function renderClientPickerList() {
+  const q = document.getElementById('cpicker-search').value.trim();
+  const filtered = q ? clientMaster.filter(c=>c.name.includes(q)||(c.attn||'').includes(q)) : clientMaster;
+  const el = document.getElementById('cpicker-list');
+  if (filtered.length===0) { el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--muted)">「${escape_html(q)}」に一致する得意先がありません</div>`; return; }
+  el.innerHTML = filtered.map(c=>`
+    <div class="picker-item" onclick="applyClientSuggest('${c.id}');closeClientPicker()">
+      <div class="picker-item-name">${escape_html(c.name)}</div>
+      <div class="picker-item-detail">${[c.attn,c.address].filter(Boolean).map(escape_html).join('　')}</div>
+    </div>
+  `).join('');
+}
+
+// ===== ITEM MASTER =====
+function renderItemMasterList() {
+  const el = document.getElementById('item-master-list');
+  if (!el) return;
+  if (itemMaster.length === 0) {
+    el.innerHTML = `<div class="empty-state"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><p>品目がまだありません<br>「＋ 品目を追加」で登録しましょう</p></div>`;
+    return;
+  }
+  el.innerHTML = itemMaster.map(item => `
+    <div class="item-master-row">
+      <div class="item-master-info">
+        <div class="item-master-name">${escape_html(item.name)}</div>
+        <div class="item-master-meta">
+          ${fmtYen(item.price)} / ${escape_html(item.unit||'式')} &nbsp;·&nbsp; 税率 ${item.tax}%
+          ${item.memo ? '&nbsp;·&nbsp; ' + escape_html(item.memo) : ''}
+        </div>
+      </div>
+      <div class="item-master-actions">
+        <button class="btn btn-outline btn-sm" onclick="openItemModal('${item.id}')">編集</button>
+        <button class="btn btn-danger-outline btn-sm" onclick="deleteItem('${item.id}')">削除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openItemModal(id) {
+  const item = id ? itemMaster.find(i => i.id === id) : null;
+  document.getElementById('item-modal-title').textContent = item ? '品目を編集' : '品目を追加';
+  document.getElementById('im-id').value = item?.id || '';
+  document.getElementById('im-name').value = item?.name || '';
+  document.getElementById('im-price').value = item?.price ?? '';
+  document.getElementById('im-unit').value = item?.unit || '式';
+  document.getElementById('im-tax').value = item?.tax ?? 10;
+  document.getElementById('im-memo').value = item?.memo || '';
+  document.getElementById('item-modal').classList.add('open');
+}
+function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); }
+
+function saveItem() {
+  const name = document.getElementById('im-name').value.trim();
+  if (!name) { toast('⚠ 品目名を入力してください'); return; }
+  const existingId = document.getElementById('im-id').value;
+  const data = {
+    id: existingId || uid(),
+    name,
+    price: parseFloat(document.getElementById('im-price').value) || 0,
+    unit: document.getElementById('im-unit').value || '式',
+    tax: parseInt(document.getElementById('im-tax').value) || 10,
+    memo: document.getElementById('im-memo').value,
+  };
+  if (existingId) {
+    const idx = itemMaster.findIndex(i => i.id === existingId);
+    if (idx >= 0) itemMaster[idx] = data;
+  } else {
+    itemMaster.push(data);
+  }
+  localStorage.setItem('invoice_items', JSON.stringify(itemMaster));
+  closeItemModal();
+  if (currentView === 'items') renderItemMasterList();
+  toast('✅ 品目を保存しました');
+}
+
+function deleteItem(id) {
+  if (!confirm('この品目を削除しますか？')) return;
+  itemMaster = itemMaster.filter(i => i.id !== id);
+  localStorage.setItem('invoice_items', JSON.stringify(itemMaster));
+  renderItemMasterList();
+  toast('削除しました');
+}
+
+// ===== ITEM PICKER =====
+function openItemPicker(rowIndex) {
+  if (itemMaster.length === 0) {
+    toast('品目マスタに登録がありません。先に「品目マスタ」から登録してください。');
+    return;
+  }
+  pickerTargetRow = rowIndex;
+  document.getElementById('picker-search').value = '';
+  renderPickerList();
+  document.getElementById('item-picker-modal').classList.add('open');
+  setTimeout(() => document.getElementById('picker-search').focus(), 80);
+}
+function closeItemPicker() { document.getElementById('item-picker-modal').classList.remove('open'); }
+
+function renderPickerList() {
+  const q = document.getElementById('picker-search').value.toLowerCase();
+  const filtered = q ? itemMaster.filter(i => i.name.toLowerCase().includes(q) || (i.memo||'').toLowerCase().includes(q)) : itemMaster;
+  const el = document.getElementById('picker-list');
+  if (filtered.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted)">「${escape_html(q)}」に一致する品目がありません</div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(item => `
+    <div class="picker-item" onclick="applyPickerItem('${item.id}')">
+      <div class="picker-item-name">${escape_html(item.name)}</div>
+      <div class="picker-item-detail">${fmtYen(item.price)} / ${escape_html(item.unit)} &nbsp;·&nbsp; 税率${item.tax}%${item.memo ? '　' + escape_html(item.memo) : ''}</div>
+    </div>
+  `).join('');
+}
+
+function applyPickerItem(itemId) {
+  const item = itemMaster.find(i => i.id === itemId);
+  if (!item || pickerTargetRow < 0) return;
+  // update model
+  collectFormData();
+  currentDoc.items[pickerTargetRow].name  = item.name;
+  currentDoc.items[pickerTargetRow].price = item.price;
+  currentDoc.items[pickerTargetRow].unit  = item.unit;
+  currentDoc.items[pickerTargetRow].tax   = item.tax;
+  closeItemPicker();
+  renderItems();
+  toast(`「${item.name}」を挿入しました`);
+}
+
+// ===== CONVERT INVOICE → RECEIPT =====
+function convertToReceipt() {
+  collectFormData();
+  doConvertToReceipt(currentDoc);
+}
+function convertToReceiptFromId(id) {
+  const doc = docs.find(d => d.id === id);
+  if (!doc) return;
+  doConvertToReceipt(doc);
+}
+function doConvertToReceipt(srcDoc) {
+  const t = calcTotalsFrom(srcDoc);
+  if (!confirm(`請求書「${srcDoc.number}」を元に領収書を作成します。\n合計金額: ${fmtYen(t.total)}\n\nよろしいですか？`)) return;
+  currentDoc = JSON.parse(JSON.stringify(srcDoc));
+  currentDoc.id = uid();
+  currentDoc.type = 'receipt';
+  currentDoc.number = autoNumber('receipt');
+  currentDoc.paymentDate = today();
+  currentDoc.receiptPurpose = '';
+  currentDoc.receiptPaymentMethod = '現金';
+  delete currentDoc.dueDate;
+  // 参照元請求書番号を備考に自動挿入
+  const ref = `（請求書番号: ${srcDoc.number} より発行）`;
+  currentDoc.notes = currentDoc.notes ? currentDoc.notes + '\n' + ref : ref;
+  renderEditForm();
+  showView('edit');
+  document.getElementById('edit-title').textContent = '領収書を作成（請求書から変換）';
+  document.getElementById('convert-btn').style.display = 'none';
+  toast('✅ 領収書に変換しました。内容を確認して保存してください。');
+}
+
+// ===== SAVE =====
+function saveDoc() {
+  collectFormData();
+  if (!currentDoc.client.name) { toast('⚠ 請求先の会社名/氏名を入力してください'); return; }
+  const idx = docs.findIndex(d=>d.id===currentDoc.id);
+  if (idx>=0) docs[idx] = currentDoc;
+  else docs.unshift(currentDoc);
+  localStorage.setItem('invoice_docs', JSON.stringify(docs));
+  // 得意先を自動登録（名前が一致するものがあれば情報を更新）
+  autoSaveClient(currentDoc.client);
+  toast('✅ 保存しました');
+}
+
+// ===== PREVIEW =====
+function previewDoc() {
+  collectFormData();
+  renderPreview(currentDoc, 'preview-content');
+  showView('preview');
+}
+function renderPreview(doc, targetId) {
+  const t = calcTotalsFrom(doc);
+  const isInvoice = doc.type==='invoice';
+  const issuer = doc.issuer || profiles.find(p=>p.id===doc.profileId) || {};
+  const itemsHtml = doc.items.map(it => {
+    const pType = it.priceType || 'ex';
+    const isIncl = pType === 'in';
+    const amt = itemAmounts(it);
+    const priceLabel = isIncl
+      ? `${fmtYen(it.price)}<br><span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:2px;padding:1px 3px">税込</span>`
+      : fmtYen(it.price);
+    const amtLabel = isIncl
+      ? `${fmtYen(amt.incl)}<br><span style="font-size:10px;color:#9ca3af">税抜: ${fmtYen(amt.excl)}</span>`
+      : fmtYen(amt.excl);
+    return `<tr>
+      <td>${escape_html(it.name)||'—'}</td>
+      <td style="text-align:right">${it.qty} ${escape_html(it.unit)}</td>
+      <td style="text-align:right">${priceLabel}</td>
+      <td style="text-align:center">${it.tax}%${it.tax==8?' ※':''}</td>
+      <td style="text-align:right">${amtLabel}</td>
+    </tr>`;
+  }).join('');
+  let totalsHtml = `<tr><td>小計（税抜）</td><td>${fmtYen(t.sub)}</td></tr>`;
+  if (t.tax10>0) totalsHtml += `<tr><td>消費税（10%）</td><td>${fmtYen(t.tax10)}</td></tr>`;
+  if (t.tax8>0) totalsHtml += `<tr><td>消費税（8%）※軽減税率</td><td>${fmtYen(t.tax8)}</td></tr>`;
+  totalsHtml += `<tr class="grand-total"><td>${isInvoice?'請求金額':'領収金額'}（税込）</td><td>${fmtYen(t.total)}</td></tr>`;
+  document.getElementById(targetId).innerHTML = `
+    <div class="preview-paper">
+      <div class="doc-title">${isInvoice ? '請　求　書' : '領　収　書'}</div>
+      <div class="doc-meta">
+        <div>
+          <div style="margin-bottom:4px"><strong>${isInvoice?'請求書番号':'領収書番号'}：</strong>${escape_html(doc.number)}</div>
+          <div><strong>発行日：</strong>${doc.date}</div>
+          ${isInvoice ? `<div><strong>支払期限：</strong>${doc.dueDate}</div>` : `<div><strong>入金日：</strong>${doc.paymentDate}</div>`}
+        </div>
+        <div class="seal-area"><div class="seal-box">印</div></div>
+      </div>
+      <div class="parties">
+        <div class="party-box">
+          <div class="party-label">請求先 / ご宛名</div>
+          <div class="party-name">${escape_html(doc.client.name)||'　'} 御中</div>
+          <div class="party-detail">${[doc.client.attn, doc.client.zip, doc.client.address].filter(Boolean).map(escape_html).join('\n')}</div>
+        </div>
+        <div class="party-box" style="text-align:right">
+          <div class="party-label">発行者</div>
+          <div class="party-name" style="text-align:right">${escape_html(issuer.name||'　')}</div>
+          <div class="party-detail" style="text-align:right">${[issuer.address, issuer.tel, issuer.invoiceNo?'登録番号：'+issuer.invoiceNo:''].filter(Boolean).map(escape_html).join('\n')}</div>
+        </div>
+      </div>
+      ${isInvoice ? '' : `
+      <div style="background:#f0fdf4;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:14px">
+        <strong>但し</strong>　${escape_html(doc.receiptPurpose)||'（記入なし）'}　として<br>
+        <strong>上記金額正に領収いたしました</strong>
+        <span style="float:right;color:#6b7280">支払方法：${escape_html(doc.receiptPaymentMethod)}</span>
+      </div>
+      `}
+      <table class="preview-table">
+        <thead><tr><th>品目・摘要</th><th style="text-align:right">数量</th><th style="text-align:right">単価</th><th style="text-align:center">税率</th><th style="text-align:right">金額</th></tr></thead>
+        <tbody>${itemsHtml}</tbody>
+      </table>
+      <div class="preview-totals"><table>${totalsHtml}</table></div>
+      ${doc.notes ? `<div class="notes-section"><strong>備考</strong><br><span style="white-space:pre-line">${escape_html(doc.notes)}</span></div>` : ''}
+      ${t.tax8>0 ? '<div style="font-size:11px;color:#9ca3af;margin-top:8px">※ 軽減税率対象品目</div>' : ''}
+    </div>
+  `;
+}
+function calcTotalsFrom(doc) {
+  let sub=0, tax10=0, tax8=0;
+  doc.items.forEach(it => {
+    const qty = it.qty || 0;
+    const price = it.price || 0;
+    const rate = Number(it.tax) || 0;
+    const pType = it.priceType || 'ex';
+    if (pType === 'in') {
+      // 税込入力 → 税抜を逆算
+      const totalIncl = qty * price;
+      const totalExcl = inclToExcl(totalIncl, rate);
+      const taxAmt = totalIncl - totalExcl;
+      sub += totalExcl;
+      if (rate === 10) tax10 += taxAmt;
+      else if (rate === 8) tax8 += taxAmt;
+    } else {
+      // 税抜入力（従来通り）
+      const totalExcl = qty * price;
+      sub += totalExcl;
+      if (rate === 10) tax10 += Math.floor(totalExcl * 0.1);
+      else if (rate === 8) tax8 += Math.floor(totalExcl * 0.08);
+    }
+  });
+  return { sub, tax10, tax8, total: sub + tax10 + tax8 };
+}
+
+// ===== DOC LIST =====
+function updateFilterOptions() { renderFilterTabs(); }  // kept for compatibility
+
+function setFilterProfile(pid) {
+  filterProfile = pid;
+  filterType = '';     // 発行者切替時は種別をリセット
+  renderFilterTabs();
+  renderDocList();
+}
+function setFilterType(t) {
+  filterType = t;
+  renderFilterTabs();
+  renderDocList();
+}
+
+function renderFilterTabs() {
+  // --- 発行者タブ ---
+  const ptEl = document.getElementById('profile-tabs');
+  if (!ptEl) return;
+
+  // count per profile (all types)
+  const allCount = docs.length;
+  const profileCounts = {};
+  docs.forEach(d => { profileCounts[d.profileId] = (profileCounts[d.profileId]||0)+1; });
+
+  let ptHtml = `<button class="tab-btn ${filterProfile===''?'active':''}" onclick="setFilterProfile('')">
+    すべて <span class="tab-count">${allCount}</span>
+  </button>`;
+  if (profiles.length > 0) ptHtml += `<div class="filter-divider"></div>`;
+  ptHtml += profiles.map(p => {
+    const cnt = profileCounts[p.id] || 0;
+    return `<button class="tab-btn ${filterProfile===p.id?'active':''}" onclick="setFilterProfile('${p.id}')">
+      ${escape_html(p.name)} <span class="tab-count">${cnt}</span>
+    </button>`;
+  }).join('');
+  ptEl.innerHTML = ptHtml;
+
+  // --- 種別タブ ---
+  const ttEl = document.getElementById('type-tabs');
+  if (!ttEl) return;
+  const base = filterProfile ? docs.filter(d=>d.profileId===filterProfile) : docs;
+  const invCnt = base.filter(d=>d.type==='invoice').length;
+  const recCnt = base.filter(d=>d.type==='receipt').length;
+  ttEl.innerHTML = `
+    <button class="type-tab ${filterType===''?'active':''}" onclick="setFilterType('')">すべて（${base.length}）</button>
+    <button class="type-tab ${filterType==='invoice'?'active':''}" onclick="setFilterType('invoice')">📄 請求書（${invCnt}）</button>
+    <button class="type-tab ${filterType==='receipt'?'active':''}" onclick="setFilterType('receipt')">✅ 領収書（${recCnt}）</button>
+  `;
+}
+
+function renderDocList() {
+  const el = document.getElementById('doc-list');
+  let filtered = docs.filter(d => {
+    if (filterProfile && d.profileId !== filterProfile) return false;
+    if (filterType && d.type !== filterType) return false;
+    return true;
+  });
+
+  // summary
+  const sumEl = document.getElementById('list-summary');
+  if (sumEl && filtered.length > 0) {
+    const totalAmt = filtered.reduce((s,d)=>s+calcTotalsFrom(d).total, 0);
+    const invCnt = filtered.filter(d=>d.type==='invoice').length;
+    const recCnt = filtered.filter(d=>d.type==='receipt').length;
+    sumEl.innerHTML = `
+      <span>${filtered.length}件</span>　合計金額 <span>${fmtYen(totalAmt)}</span>
+      ${invCnt > 0 ? `　請求書 <span>${invCnt}件</span>` : ''}
+      ${recCnt > 0 ? `　領収書 <span>${recCnt}件</span>` : ''}
+    `;
+  } else if (sumEl) { sumEl.innerHTML = ''; }
+
+  if (filtered.length===0) {
+    el.innerHTML = `<div class="empty-state">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <p>書類がありません<br>「＋ 請求書」または「＋ 領収書」で作成しましょう</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(doc => {
+    const t = calcTotalsFrom(doc);
+    const isInvoice = doc.type==='invoice';
+    const pName = (profiles.find(p=>p.id===doc.profileId)||{}).name || '';
+    // 発行者タブで絞ってるときはバッジ非表示
+    const showProfileBadge = !filterProfile && pName;
+    return `
+      <div class="doc-item" onclick="openDoc('${doc.id}')">
+        <div class="doc-item-info">
+          <div class="doc-item-title">
+            <span class="badge ${isInvoice?'badge-blue':'badge-green'}">${isInvoice?'請求書':'領収書'}</span>
+            &nbsp;${escape_html(doc.client.name)||'（未入力）'}
+            <span style="color:#9ca3af;font-size:12px;font-weight:400">&nbsp;${escape_html(doc.number)}</span>
+          </div>
+          <div class="doc-item-meta">
+            発行日: ${doc.date}${isInvoice?' ／ 支払期限: '+doc.dueDate:''}
+            ${showProfileBadge ? `&nbsp;·&nbsp;<span class="badge badge-purple">${escape_html(pName)}</span>` : ''}
+          </div>
+        </div>
+        <div class="doc-item-amount">${fmtYen(t.total)}</div>
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();duplicateDoc('${doc.id}')" title="内容をコピーして新しい書類を作成">📋 コピー</button>
+        ${isInvoice ? `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();convertToReceiptFromId('${doc.id}')" title="この請求書を元に領収書を作成">🔄 領収書へ</button>` : ''}
+        <button class="btn btn-danger-outline btn-sm" onclick="event.stopPropagation();deleteDoc('${doc.id}')">削除</button>
+      </div>
+    `;
+  }).join('');
+}
+function openDoc(id) {
+  const doc = docs.find(d=>d.id===id);
+  if (!doc) return;
+  currentDoc = JSON.parse(JSON.stringify(doc));
+  renderEditForm();
+  showView('edit');
+  document.getElementById('edit-title').textContent = doc.type==='invoice' ? '請求書を編集' : '領収書を編集';
+}
+function duplicateDoc(id) {
+  const src = docs.find(d => d.id === id);
+  if (!src) return;
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = uid();
+  copy.number = autoNumber(copy.type);
+  copy.date = today();
+  if (copy.type === 'invoice') {
+    copy.dueDate = dueDateDefault();
+  } else {
+    copy.paymentDate = today();
+  }
+  // 備考から前回のコピー注記を除去し、新しく付ける
+  copy.notes = (copy.notes || '').replace(/\n?（コピー元: .*?）$/, '');
+  docs.unshift(copy);
+  localStorage.setItem('invoice_docs', JSON.stringify(docs));
+  // そのままコピーを編集画面で開く
+  currentDoc = copy;
+  renderEditForm();
+  showView('edit');
+  document.getElementById('edit-title').textContent =
+    (copy.type === 'invoice' ? '請求書を編集' : '領収書を編集') + '（コピー）';
+  toast(`✅ コピーしました。内容を確認して保存してください。`);
+}
+function deleteDoc(id) {
+  if (!confirm('この書類を削除しますか？')) return;
+  docs = docs.filter(d=>d.id!==id);
+  localStorage.setItem('invoice_docs', JSON.stringify(docs));
+  renderDocList();
+  toast('削除しました');
+}
+
+// ===== PRINT =====
+function printDoc() {
+  if (currentView==='edit') {
+    collectFormData();
+    renderPreview(currentDoc, 'preview-content');
+    showView('preview');
+    setTimeout(()=>window.print(), 250);
+  } else { window.print(); }
+}
+
+// ===== PROFILE LIST =====
+function renderProfileList() {
+  const el = document.getElementById('profile-list');
+  if (profiles.length===0) {
+    el.innerHTML = `<div class="empty-state"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>プロフィールがありません<br>「＋ プロフィールを追加」で登録しましょう</p></div>`;
+    return;
+  }
+  el.innerHTML = profiles.map(p => {
+    const isActive = p.id === activeProfileId;
+    const docCount = docs.filter(d=>d.profileId===p.id).length;
+    return `
+      <div class="profile-card ${isActive?'is-active':''}">
+        <div class="profile-card-info">
+          <div class="profile-card-name">
+            ${escape_html(p.name)}
+            ${isActive ? '<span class="active-badge">使用中</span>' : ''}
+          </div>
+          <div class="profile-card-detail">
+            ${[p.address, p.tel, p.email].filter(Boolean).map(escape_html).join('　·　')}
+            ${p.invoiceNo ? '<br>登録番号: '+escape_html(p.invoiceNo) : ''}
+            <br><span style="color:#9ca3af">書類数: ${docCount}件</span>
+          </div>
+        </div>
+        <div class="profile-card-actions">
+          ${!isActive ? `<button class="btn btn-outline btn-sm" onclick="switchProfile('${p.id}')">切り替え</button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="openProfileModal('${p.id}')">編集</button>
+          <button class="btn btn-danger-outline btn-sm" onclick="deleteProfile('${p.id}')">削除</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+function switchProfile(id) {
+  setActiveProfile(id);
+  renderProfileList();
+  toast('✅ プロフィールを切り替えました');
+}
+function deleteProfile(id) {
+  const docCount = docs.filter(d=>d.profileId===id).length;
+  const msg = docCount > 0
+    ? `このプロフィールには${docCount}件の書類があります。削除しますか？（書類は残ります）`
+    : 'このプロフィールを削除しますか？';
+  if (!confirm(msg)) return;
+  profiles = profiles.filter(p=>p.id!==id);
+  if (activeProfileId===id) {
+    activeProfileId = profiles[0]?.id || null;
+    localStorage.setItem('invoice_active_profile', activeProfileId||'');
+    updateSidebarProfile();
+  }
+  localStorage.setItem('invoice_profiles', JSON.stringify(profiles));
+  renderProfileList();
+  updateFilterOptions();
+  toast('削除しました');
+}
+
+// ===== PROFILE MODAL =====
+function openProfileModal(id) {
+  const p = id ? profiles.find(pr=>pr.id===id) : null;
+  document.getElementById('profile-modal-title').textContent = p ? 'プロフィールを編集' : 'プロフィールを追加';
+  document.getElementById('pm-id').value = p?.id || '';
+  document.getElementById('pm-name').value = p?.name || '';
+  document.getElementById('pm-invoiceno').value = p?.invoiceNo || '';
+  document.getElementById('pm-zip').value = p?.zip || '';
+  document.getElementById('pm-address').value = p?.address || '';
+  document.getElementById('pm-tel').value = p?.tel || '';
+  document.getElementById('pm-email').value = p?.email || '';
+  document.getElementById('pm-bank').value = p?.bank || '';
+  document.getElementById('profile-modal').classList.add('open');
+}
+function closeProfileModal() {
+  document.getElementById('profile-modal').classList.remove('open');
+}
+function saveProfile() {
+  const name = document.getElementById('pm-name').value.trim();
+  if (!name) { toast('⚠ 会社名/氏名を入力してください'); return; }
+  const existingId = document.getElementById('pm-id').value;
+  const data = {
+    id: existingId || uid(),
+    name,
+    invoiceNo: document.getElementById('pm-invoiceno').value,
+    zip: document.getElementById('pm-zip').value,
+    address: document.getElementById('pm-address').value,
+    tel: document.getElementById('pm-tel').value,
+    email: document.getElementById('pm-email').value,
+    bank: document.getElementById('pm-bank').value,
+  };
+  if (existingId) {
+    const idx = profiles.findIndex(p=>p.id===existingId);
+    if (idx>=0) profiles[idx] = data;
+  } else {
+    profiles.push(data);
+    if (!activeProfileId) setActiveProfile(data.id);
+  }
+  localStorage.setItem('invoice_profiles', JSON.stringify(profiles));
+  updateSidebarProfile();
+  updateFilterOptions();
+  closeProfileModal();
+  if (currentView==='profiles') renderProfileList();
+  // if we're in the edit form, refresh the issuer dropdown
+  if (currentView==='edit') {
+    const sel = document.getElementById('si-profile');
+    if (sel) {
+      const profileOptions = profiles.map(p =>
+        `<option value="${p.id}" ${p.id===(currentDoc.profileId||activeProfileId)?'selected':''}>${escape_html(p.name)}</option>`
+      ).join('');
+      sel.innerHTML = profileOptions;
+    }
+  }
+  toast('✅ プロフィールを保存しました');
+}
+
+// ===== URL GENERATION =====
+function selectExpiry(days) {
+  selectedExpiry = days;
+  document.querySelectorAll('.expiry-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.textContent)===days);
+  });
+  document.getElementById('url-display').style.display = 'none';
+  document.getElementById('copy-btn').style.display = 'none';
+  generatedUrl = '';
+}
+function openUrlModal() {
+  if (currentView==='edit') collectFormData();
+  document.getElementById('url-modal').classList.add('open');
+  document.getElementById('url-display').style.display = 'none';
+  document.getElementById('copy-btn').style.display = 'none';
+}
+function closeUrlModal() { document.getElementById('url-modal').classList.remove('open'); }
+function generateUrl() {
+  if (!currentDoc) { toast('先に書類を作成してください'); return; }
+  const expires = Date.now() + selectedExpiry * 86400000;
+  const payload = { doc: currentDoc, expires };
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  generatedUrl = location.href.split('#')[0] + '#share=' + encoded;
+  document.getElementById('url-display').textContent = generatedUrl;
+  document.getElementById('url-display').style.display = 'block';
+  document.getElementById('copy-btn').style.display = 'inline-flex';
+}
+function copyUrl() {
+  navigator.clipboard.writeText(generatedUrl).then(() => toast('📋 URLをコピーしました！'));
+}
+
+// ===== SHARED URL HANDLER =====
+function checkSharedUrl() {
+  const hash = location.hash;
+  if (!hash.startsWith('#share=')) return;
+  try {
+    const payload = JSON.parse(decodeURIComponent(escape(atob(hash.slice(7)))));
+    if (Date.now() > payload.expires) {
+      document.getElementById('shared-content').innerHTML = `<div class="empty-state" style="padding:80px"><svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p style="font-size:16px;margin-top:8px">このURLは有効期限切れです</p></div>`;
+      document.getElementById('shared-title').textContent = '有効期限切れ';
+    } else {
+      currentDoc = payload.doc;
+      renderPreview(payload.doc, 'shared-content');
+      const t = calcTotalsFrom(payload.doc);
+      document.getElementById('shared-title').textContent =
+        (payload.doc.type==='invoice'?'請求書':'領収書') + ' — ' + payload.doc.client.name + ' ' + fmtYen(t.total);
+    }
+    showView('shared');
+  } catch(e) { console.error(e); }
+}
+
+// ===== DATA MANAGEMENT =====
+function openDataModal() { document.getElementById('data-modal').classList.add('open'); }
+function closeDataModal() { document.getElementById('data-modal').classList.remove('open'); }
+
+function exportAllData() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    docs: docs,
+    profiles: profiles,
+    clients: clientMaster,
+    items: itemMaster,
+    activeProfileId: activeProfileId
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'invoice-backup-' + today() + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportToolOnly() {
+  // Fetch the current page source and strip all localStorage data out of it
+  fetch(location.href)
+    .then(r => r.text())
+    .then(html => {
+      // Remove any inline data that might have been baked in (none in this tool, but safe to strip)
+      const blob = new Blob([html], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'invoice-tool.html';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => toast('⚠ HTMLの取得に失敗しました'));
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('import-status');
+  statusEl.textContent = '読み込み中…';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let added = 0;
+
+      // Merge docs — skip if same id already exists
+      if (Array.isArray(data.docs)) {
+        const existingIds = new Set(docs.map(d => d.id));
+        data.docs.forEach(d => { if (!existingIds.has(d.id)) { docs.push(d); added++; } });
+        localStorage.setItem('invoice_docs', JSON.stringify(docs));
+      }
+
+      // Merge profiles — skip if same id
+      if (Array.isArray(data.profiles)) {
+        const existingIds = new Set(profiles.map(p => p.id));
+        data.profiles.forEach(p => { if (!existingIds.has(p.id)) profiles.push(p); });
+        localStorage.setItem('invoice_profiles', JSON.stringify(profiles));
+      }
+
+      // Merge clients — skip if same id
+      if (Array.isArray(data.clients)) {
+        const existingIds = new Set(clientMaster.map(c => c.id));
+        data.clients.forEach(c => { if (!existingIds.has(c.id)) clientMaster.push(c); });
+        localStorage.setItem('invoice_clients', JSON.stringify(clientMaster));
+      }
+
+      // Merge items — skip if same id
+      if (Array.isArray(data.items)) {
+        const existingIds = new Set(itemMaster.map(i => i.id));
+        data.items.forEach(i => { if (!existingIds.has(i.id)) itemMaster.push(i); });
+        localStorage.setItem('invoice_items', JSON.stringify(itemMaster));
+      }
+
+      // Restore active profile only if not already set
+      if (data.activeProfileId && !activeProfileId) {
+        activeProfileId = data.activeProfileId;
+        localStorage.setItem('invoice_active_profile', activeProfileId);
+      }
+
+      statusEl.textContent = '✅ インポート完了';
+      toast('✅ インポートしました（書類 ' + added + ' 件追加）');
+      closeDataModal();
+      updateSidebarProfile();
+      renderFilterTabs();
+      renderDocList();
+    } catch(err) {
+      statusEl.textContent = '⚠ 失敗';
+      toast('⚠ ファイルの読み込みに失敗しました');
+    }
+    // Reset input so same file can be re-selected
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は元に戻せません。')) return;
+  ['invoice_docs','invoice_profiles','invoice_clients','invoice_items','invoice_active_profile'].forEach(k => localStorage.removeItem(k));
+  location.reload();
+}
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  if (location.hash.startsWith('#share=')) { checkSharedUrl(); return; }
+  updateSidebarProfile();
+  renderFilterTabs();
+  renderDocList();
+});
+window.addEventListener('hashchange', checkSharedUrl);
+
+// close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
