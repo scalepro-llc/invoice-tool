@@ -1051,9 +1051,37 @@ function renderItems() {
 function updateItem(i, field, val) {
   if (field==='qty'||field==='price'||field==='tax'||field==='directAmountVal') val = parseFloat(val)||0;
   currentDoc.items[i][field] = val;
-  // 計算に関係するフィールドのみ再描画（名前・単位はフォーカスを維持）
+  // name・unit はフォーカスを維持（再描画しない）
   if (field==='name'||field==='unit') return;
+  // qty・price・directAmountVal は行合計と総合計だけ更新（テーブル再描画しない）
+  if (field==='qty'||field==='price'||field==='directAmountVal') {
+    updateRowTotal(i);
+    renderTotals();
+    return;
+  }
+  // tax・priceType・directAmount などトグル操作は全体再描画
   renderItems();
+}
+
+function updateRowTotal(i) {
+  const item = currentDoc.items[i];
+  if (!item || item.rowType === 'text') return;
+  const isDirect = !!item.directAmount;
+  const pType = item.priceType || 'in';
+  const isIncl = pType === 'in';
+  const amt = itemAmounts(item);
+  const cell = document.getElementById('rowtotal-' + i);
+  if (!cell) return;
+  const toggleLink = `<div class="direct-hint"><a href="#" onclick="updateItem(${i},'directAmount',${!isDirect});return false">${isDirect ? '↩ 計算式に戻す' : '✏ 金額直接入力'}</a></div>`;
+  if (isDirect) {
+    // 直接入力モード中はinputはそのまま、バッジだけ更新
+    cell.querySelector('.direct-hint').outerHTML; // no-op
+  } else {
+    cell.innerHTML = (isIncl
+      ? `${fmtYen(amt.incl)}<br><span class="badge-incl">税込</span>`
+      : `${fmtYen(amt.excl)}<br><span class="badge-excl">税抜</span>`)
+      + toggleLink;
+  }
 }
 function calcTotals() { return calcTotalsFrom(currentDoc); }
 function renderTotals() {
@@ -1920,7 +1948,6 @@ function importData(input) {
       renderFilterTabs();
       renderDocList();
     } catch(err) {
-      statusEl.textContent = '⚠ 失敗';
       toast('⚠ ファイルの読み込みに失敗しました');
     }
     input.value = '';
