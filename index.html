@@ -545,7 +545,18 @@
     <h2 id="client-modal-title">得意先を追加</h2>
     <input type="hidden" id="cm-id" />
     <div style="display:flex;flex-direction:column;gap:12px">
-      <div><label>会社名 / 氏名 <span style="color:red">*</span></label><input id="cm-name" placeholder="株式会社〇〇 / 山田様" /></div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1"><label>会社名 / 氏名 <span style="color:red">*</span></label><input id="cm-name" placeholder="株式会社〇〇" /></div>
+        <div style="flex-shrink:0"><label>敬称</label>
+          <select id="cm-honorific" style="width:80px">
+            <option value="御中">御中</option>
+            <option value="様">様</option>
+            <option value="殿">殿</option>
+            <option value="各位">各位</option>
+            <option value="（なし）">（なし）</option>
+          </select>
+        </div>
+      </div>
       <div><label>担当者</label><input id="cm-attn" placeholder="営業部 田中様" /></div>
       <div class="grid-2">
         <div><label>郵便番号</label><input id="cm-zip" placeholder="〒100-0001" /></div>
@@ -769,6 +780,9 @@ function renderEditForm() {
                   oninput="clientSuggest(this.value)" onkeydown="clientSuggestKey(event)" onfocus="clientSuggest(this.value)" />
                 <div id="client-suggest-box" class="client-suggest" style="display:none"></div>
               </div>
+              <select id="c-honorific" style="width:80px;flex-shrink:0" title="敬称">
+                ${['御中','様','殿','各位','（なし）'].map(h=>`<option value="${h}" ${(d.client.honorific||'御中')===h?'selected':''}>${h}</option>`).join('')}
+              </select>
               <button class="client-pick-btn" type="button" onclick="openClientPicker()" title="得意先一覧から選択">👤 選択</button>
             </div>
           </div>
@@ -873,7 +887,7 @@ function onIssuerProfileChange(pid) {
 
 function addItem() {
   collectFormData();
-  currentDoc.items.push({ rowType:'item', name:'', qty:1, unit:'式', price:0, tax:10 });
+  currentDoc.items.push({ rowType:'item', name:'', qty:1, unit:'式', price:0, tax:10, priceType:'in' });
   renderItems();
 }
 function addTextRow() {
@@ -904,7 +918,7 @@ function itemAmounts(item) {
   const qty = item.qty || 0;
   const price = item.price || 0;
   const rate = Number(item.tax) || 0;
-  const pType = item.priceType || 'ex';
+  const pType = item.priceType || 'in';
   if (pType === 'in') {
     const totalIncl = qty * price;
     const totalExcl = inclToExcl(totalIncl, rate);
@@ -990,7 +1004,7 @@ function renderItems() {
     }
 
     // NORMAL ITEM ROW
-    const pType = item.priceType || 'ex';
+    const pType = item.priceType || 'in';
     const isIncl = pType === 'in';
     const isDirect = !!item.directAmount;
     const amt = itemAmounts(item);
@@ -1037,7 +1051,9 @@ function renderItems() {
 function updateItem(i, field, val) {
   if (field==='qty'||field==='price'||field==='tax'||field==='directAmountVal') val = parseFloat(val)||0;
   currentDoc.items[i][field] = val;
-  renderItems(); // full re-render to update hints and totals
+  // 計算に関係するフィールドのみ再描画（名前・単位はフォーカスを維持）
+  if (field==='name'||field==='unit') return;
+  renderItems();
 }
 function calcTotals() { return calcTotalsFrom(currentDoc); }
 function renderTotals() {
@@ -1058,6 +1074,7 @@ function collectFormData() {
   if (currentDoc.type==='invoice') currentDoc.dueDate = g('f-duedate');
   else currentDoc.paymentDate = g('f-paydate');
   currentDoc.client.name = g('c-name');
+  currentDoc.client.honorific = g('c-honorific') || '御中';
   currentDoc.client.attn = g('c-attn');
   currentDoc.client.zip = g('c-zip');
   currentDoc.client.address = g('c-address');
@@ -1082,12 +1099,13 @@ function autoSaveClient(client) {
   const existing = clientMaster.find(c => c.name === client.name);
   if (existing) {
     // 情報を更新（空でない場合のみ上書き）
+    if (client.honorific) existing.honorific = client.honorific;
     if (client.attn) existing.attn = client.attn;
     if (client.zip) existing.zip = client.zip;
     if (client.address) existing.address = client.address;
     existing.updatedAt = Date.now();
   } else {
-    clientMaster.unshift({ id: uid(), name: client.name, attn: client.attn||'', zip: client.zip||'', address: client.address||'', memo:'', updatedAt: Date.now() });
+    clientMaster.unshift({ id: uid(), name: client.name, honorific: client.honorific||'御中', attn: client.attn||'', zip: client.zip||'', address: client.address||'', memo:'', updatedAt: Date.now() });
   }
   localStorage.setItem('invoice_clients', JSON.stringify(clientMaster));
 }
@@ -1103,7 +1121,7 @@ function renderClientList() {
     const docCount = docs.filter(d => d.client.name === c.name).length;
     return `<div class="client-row">
       <div class="client-row-info">
-        <div class="client-row-name">${escape_html(c.name)}</div>
+        <div class="client-row-name">${escape_html(c.name)}${c.honorific && c.honorific!=='（なし）' ? `<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px">${escape_html(c.honorific)}</span>` : ''}</div>
         <div class="client-row-detail">
           ${[c.attn, c.zip, c.address].filter(Boolean).map(escape_html).join('　·　')}
           ${c.memo ? '　' + escape_html(c.memo) : ''}
@@ -1123,6 +1141,7 @@ function openClientModal(id) {
   document.getElementById('client-modal-title').textContent = c ? '得意先を編集' : '得意先を追加';
   document.getElementById('cm-id').value = c?.id || '';
   document.getElementById('cm-name').value = c?.name || '';
+  document.getElementById('cm-honorific').value = c?.honorific || '御中';
   document.getElementById('cm-attn').value = c?.attn || '';
   document.getElementById('cm-zip').value = c?.zip || '';
   document.getElementById('cm-address').value = c?.address || '';
@@ -1135,7 +1154,7 @@ function saveClientManual() {
   const name = document.getElementById('cm-name').value.trim();
   if (!name) { toast('⚠ 会社名/氏名を入力してください'); return; }
   const existingId = document.getElementById('cm-id').value;
-  const data = { id: existingId || uid(), name, attn: document.getElementById('cm-attn').value, zip: document.getElementById('cm-zip').value, address: document.getElementById('cm-address').value, memo: document.getElementById('cm-memo').value, updatedAt: Date.now() };
+  const data = { id: existingId || uid(), name, honorific: document.getElementById('cm-honorific').value||'御中', attn: document.getElementById('cm-attn').value, zip: document.getElementById('cm-zip').value, address: document.getElementById('cm-address').value, memo: document.getElementById('cm-memo').value, updatedAt: Date.now() };
   if (existingId) { const idx = clientMaster.findIndex(c=>c.id===existingId); if(idx>=0) clientMaster[idx]=data; }
   else clientMaster.unshift(data);
   localStorage.setItem('invoice_clients', JSON.stringify(clientMaster));
@@ -1186,6 +1205,7 @@ function applyClientSuggest(cid) {
   if (!c) return;
   const set = (id,v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
   set('c-name', c.name); set('c-attn', c.attn); set('c-zip', c.zip); set('c-address', c.address);
+  const hEl = document.getElementById('c-honorific'); if (hEl) hEl.value = c.honorific || '御中';
   const box = document.getElementById('client-suggest-box');
   if (box) box.style.display='none';
 }
@@ -1322,10 +1342,11 @@ function applyPickerItem(itemId) {
   if (!item || pickerTargetRow < 0) return;
   // update model
   collectFormData();
-  currentDoc.items[pickerTargetRow].name  = item.name;
-  currentDoc.items[pickerTargetRow].price = item.price;
-  currentDoc.items[pickerTargetRow].unit  = item.unit;
-  currentDoc.items[pickerTargetRow].tax   = item.tax;
+  currentDoc.items[pickerTargetRow].name      = item.name;
+  currentDoc.items[pickerTargetRow].price     = item.price;
+  currentDoc.items[pickerTargetRow].unit      = item.unit;
+  currentDoc.items[pickerTargetRow].tax       = item.tax;
+  if (!currentDoc.items[pickerTargetRow].priceType) currentDoc.items[pickerTargetRow].priceType = 'in';
   closeItemPicker();
   renderItems();
   toast(`「${item.name}」を挿入しました`);
@@ -1430,7 +1451,7 @@ function renderPreview(doc, targetId) {
       <div class="parties">
         <div class="party-box">
           <div class="party-label">請求先 / ご宛名</div>
-          <div class="party-name">${escape_html(doc.client.name)||'　'} 御中</div>
+          <div class="party-name">${escape_html(doc.client.name)||'　'}${(doc.client.honorific && doc.client.honorific!=='（なし）') ? '&ensp;'+escape_html(doc.client.honorific) : ''}</div>
           <div class="party-detail">${[doc.client.attn, doc.client.zip, doc.client.address].filter(Boolean).map(escape_html).join('\n')}</div>
         </div>
         <div class="party-box" style="text-align:right">
@@ -1886,53 +1907,4 @@ function importData(input) {
       }
 
       // Restore active profile only if not already set
-      if (data.activeProfileId && !activeProfileId) {
-        activeProfileId = data.activeProfileId;
-        localStorage.setItem('invoice_active_profile', activeProfileId);
-      }
-
-      statusEl.textContent = '✅ インポート完了';
-      toast('✅ インポートしました（書類 ' + added + ' 件追加）');
-      closeDataModal();
-      updateSidebarProfile();
-      renderFilterTabs();
-      renderDocList();
-    } catch(err) {
-      statusEl.textContent = '⚠ 失敗';
-      toast('⚠ ファイルの読み込みに失敗しました');
-    }
-    // Reset input so same file can be re-selected
-    input.value = '';
-  };
-  reader.readAsText(file);
-}
-
-function clearAllData() {
-  if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は元に戻せません。')) return;
-  ['invoice_docs','invoice_profiles','invoice_clients','invoice_items','invoice_active_profile'].forEach(k => localStorage.removeItem(k));
-  location.reload();
-}
-
-// ===== INIT =====
-window.addEventListener('load', () => {
-  if (location.hash.startsWith('#share=')) { checkSharedUrl(); return; }
-  updateSidebarProfile();
-  renderFilterTabs();
-  renderDocList();
-});
-window.addEventListener('hashchange', checkSharedUrl);
-
-// close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.classList.remove('open'); });
-});
-// close col-settings popup on outside click
-document.addEventListener('click', e => {
-  const popup = document.getElementById('col-popup');
-  if (popup && !popup.closest('.col-settings-wrap').contains(e.target)) {
-    popup.style.display = 'none';
-  }
-});
-</script>
-</body>
-</html>
+      if (data.activeProfileId && !act
