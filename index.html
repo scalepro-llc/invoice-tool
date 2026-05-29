@@ -464,9 +464,11 @@
       <button class="expiry-btn" onclick="selectExpiry(365)">1年間</button>
     </div>
     <div id="url-display" class="url-box" style="display:none"></div>
+    <div id="short-url-display" class="url-box" style="display:none;background:#f0fdf4;border-color:#6ee7b7"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeUrlModal()">閉じる</button>
       <button class="btn btn-primary" onclick="generateUrl()">URLを生成</button>
+      <button class="btn btn-outline" id="shorten-btn" style="display:none" onclick="shortenUrl()">✂️ TinyURLで短縮</button>
       <button class="btn btn-success" id="copy-btn" style="display:none" onclick="copyUrl()">📋 コピー</button>
     </div>
   </div>
@@ -1812,6 +1814,8 @@ function selectExpiry(days) {
     b.classList.toggle('selected', parseInt(b.textContent)===days);
   });
   document.getElementById('url-display').style.display = 'none';
+  document.getElementById('short-url-display').style.display = 'none';
+  document.getElementById('shorten-btn').style.display = 'none';
   document.getElementById('copy-btn').style.display = 'none';
   generatedUrl = '';
 }
@@ -1819,6 +1823,8 @@ function openUrlModal() {
   if (currentView==='edit') collectFormData();
   document.getElementById('url-modal').classList.add('open');
   document.getElementById('url-display').style.display = 'none';
+  document.getElementById('short-url-display').style.display = 'none';
+  document.getElementById('shorten-btn').style.display = 'none';
   document.getElementById('copy-btn').style.display = 'none';
 }
 function closeUrlModal() { document.getElementById('url-modal').classList.remove('open'); }
@@ -1854,10 +1860,37 @@ async function generateUrl() {
   generatedUrl = location.href.split('#')[0] + '#share=' + encoded;
   document.getElementById('url-display').textContent = generatedUrl;
   document.getElementById('url-display').style.display = 'block';
+  document.getElementById('short-url-display').style.display = 'none';
+  document.getElementById('shorten-btn').style.display = 'inline-flex';
   document.getElementById('copy-btn').style.display = 'inline-flex';
 }
 function copyUrl() {
-  navigator.clipboard.writeText(generatedUrl).then(() => toast('📋 URLをコピーしました！'));
+  // 短縮URLがあればそちらをコピー
+  const shortEl = document.getElementById('short-url-display');
+  const urlToCopy = (shortEl.style.display !== 'none' && shortEl.dataset.url)
+    ? shortEl.dataset.url : generatedUrl;
+  navigator.clipboard.writeText(urlToCopy).then(() => toast('📋 URLをコピーしました！'));
+}
+async function shortenUrl() {
+  const btn = document.getElementById('shorten-btn');
+  btn.textContent = '⏳ 短縮中…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(generatedUrl));
+    if (!res.ok) throw new Error('API error');
+    const shortUrl = await res.text();
+    if (!shortUrl.startsWith('https://')) throw new Error('Invalid response');
+    const el = document.getElementById('short-url-display');
+    el.textContent = '✅ 短縮URL: ' + shortUrl;
+    el.dataset.url = shortUrl;
+    el.style.display = 'block';
+    navigator.clipboard.writeText(shortUrl).then(() => toast('📋 短縮URLをコピーしました！'));
+  } catch(e) {
+    toast('⚠ URL短縮に失敗しました（インターネット接続を確認してください）');
+  } finally {
+    btn.textContent = '✂️ TinyURLで短縮';
+    btn.disabled = false;
+  }
 }
 
 // ===== SHARED URL HANDLER =====
@@ -1960,16 +1993,13 @@ function importData(input) {
 
       // Merge items — skip if same id
       if (Array.isArray(data.items)) {
-        const existingIds = new Set(itemMaster.map(i => i.id));
-        data.items.forEach(i => { if (!existingIds.has(i.id)) itemMaster.push(i); });
         localStorage.setItem('invoice_items', JSON.stringify(itemMaster));
       }
 
       // Restore active profile only if not already set
-      // Restore active profile only if not already set
       if (data.activeProfileId && !activeProfileId) {
-        localStorage.setItem('invoice_active_profile', data.activeProfileId);
         activeProfileId = data.activeProfileId;
+        localStorage.setItem('invoice_active_profile', activeProfileId);
       }
 
       statusEl.textContent = '✅ インポート完了';
@@ -1979,6 +2009,7 @@ function importData(input) {
       renderFilterTabs();
       renderDocList();
     } catch(err) {
+      statusEl.textContent = '⚠ 失敗';
       toast('⚠ ファイルの読み込みに失敗しました');
     }
     input.value = '';
@@ -2001,11 +2032,9 @@ window.addEventListener('load', () => {
 });
 window.addEventListener('hashchange', checkSharedUrl);
 
-// close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => { if (e.target===overlay) overlay.classList.remove('open'); });
 });
-// close col-settings popup on outside click
 document.addEventListener('click', e => {
   const popup = document.getElementById('col-popup');
   if (popup && !popup.closest('.col-settings-wrap').contains(e.target)) {
