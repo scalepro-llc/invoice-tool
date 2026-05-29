@@ -6,6 +6,7 @@
 <title>請求書・領収書作成ツール</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --primary: #1a56db;
@@ -283,35 +284,6 @@
   .name-cell input { flex: 1; min-width: 0; }
   .pick-btn { flex-shrink: 0; padding: 5px 7px; font-size: 13px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; cursor: pointer; line-height: 1; }
   .pick-btn:hover { background: #dbeafe; }
-
-  /* ===== GOOGLE DRIVE ===== */
-  .btn-drive { background: #fff; color: #1a73e8; border: 1px solid #dadce0; }
-  .btn-drive:hover { background: #f1f3f4; }
-  .btn-drive.connected { background: #e8f5e9; color: #137333; border-color: #a8d5b5; }
-  .btn-drive svg { flex-shrink: 0; }
-
-  .drive-result-box { background: #e8f5e9; border: 1px solid #a8d5b5; border-radius: 8px; padding: 12px 16px; margin-top: 12px; display: none; }
-  .drive-result-box .drive-link { font-size: 13px; color: #1a73e8; word-break: break-all; text-decoration: none; }
-  .drive-result-box .drive-link:hover { text-decoration: underline; }
-  .drive-result-label { font-size: 11px; font-weight: 600; color: #137333; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-  .drive-result-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-
-  .drive-setup-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #795548; margin-top: 10px; display: none; }
-  .drive-setup-box code { background: #f5f5f5; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
-
-  .gd-modal-section { background: #f8faff; border: 1px solid #dbeafe; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
-  .gd-modal-section h4 { font-size: 12px; font-weight: 700; color: #1e40af; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .gd-step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; font-size: 13px; }
-  .gd-step-num { background: #1a73e8; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-  .gd-step-text { flex: 1; line-height: 1.5; color: #374151; }
-  .gd-step-text a { color: #1a73e8; }
-  .gd-step-text code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 11px; font-family: monospace; }
-  .gd-connected-bar { background: #e8f5e9; border: 1px solid #a8d5b5; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .gd-connected-bar .gd-user { flex: 1; font-size: 13px; font-weight: 600; color: #137333; }
-  .gd-connected-bar .gd-user small { display: block; font-size: 11px; color: #4b5563; font-weight: 400; }
-  .drive-folder-row { display: flex; gap: 8px; align-items: center; }
-  .drive-folder-row input { flex: 1; }
-  .drive-folder-row button { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -363,10 +335,6 @@
     </nav>
     <!-- DATA MANAGEMENT FOOTER -->
     <div style="padding:10px 8px;border-top:1px solid #2d3a52">
-      <button id="nav-drive-btn" class="nav-btn" onclick="openDriveSetupModal()" style="font-size:12px;color:#8899bb" title="Google Drive連携">
-        <svg width="14" height="12" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#8899bb"/><path d="M43.65 25L29.9 1.2C28.55.4 27 0 25.45 0c-1.55 0-3.1.4-4.45 1.2L6.6 14.45l21.5 37.2 15.55-26.65z" fill="#8899bb"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l6.45 11.25L73.55 76.8z" fill="#8899bb"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.95 0H34.35C32.8 0 31.25.4 29.9 1.2L43.65 25z" fill="#8899bb"/><path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.45 1.2h50.9c1.55 0 3.1-.4 4.45-1.2L59.8 53z" fill="#8899bb"/><path d="M73.4 14.5L59.65 1.2C58.3.4 56.75 0 55.2 0h-2.25L43.65 25l16.15 28H87.3c0-1.55-.4-3.1-1.2-4.5L73.4 14.5z" fill="#8899bb"/></svg>
-        <span id="nav-drive-label">Google Drive連携</span>
-      </button>
       <button class="nav-btn" onclick="openDataModal()" style="font-size:12px;color:#8899bb">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         データ管理（エクスポート/インポート）
@@ -411,7 +379,7 @@
           <button class="btn btn-outline" onclick="openUrlModal()">🔗 URL発行</button>
           <button class="btn btn-success" onclick="saveDoc()">💾 保存</button>
           <button class="btn btn-primary" onclick="downloadPdf()">📥 PDFダウンロード</button>
-          <button class="btn btn-drive" id="drive-upload-btn-edit" onclick="uploadToDrive()">☁️ Driveへ保存</button>
+          <button class="btn btn-success" onclick="uploadToDrive()">☁️ Driveへ共有</button>
           <button class="btn btn-outline" onclick="printDoc()">🖨 印刷</button>
         </div>
       </div>
@@ -428,7 +396,7 @@
         <div class="header-actions">
           <button class="btn btn-outline" onclick="openUrlModal()">🔗 URL発行</button>
           <button class="btn btn-primary" onclick="downloadPdf()">📥 PDFダウンロード</button>
-          <button class="btn btn-drive" id="drive-upload-btn-preview" onclick="uploadToDrive()">☁️ Driveへ保存</button>
+          <button class="btn btn-success" onclick="uploadToDrive()">☁️ Driveへ共有</button>
           <button class="btn btn-outline" onclick="printDoc()">🖨 印刷</button>
         </div>
       </div>
@@ -575,6 +543,7 @@
     </details>
 
     <div class="modal-actions">
+      <button class="btn btn-outline" onclick="openDriveSettings()">⚙️ Drive設定</button>
       <button class="btn btn-outline" onclick="closeDataModal()">閉じる</button>
     </div>
   </div>
@@ -666,98 +635,6 @@
     </div>
   </div>
 </div>
-
-
-<!-- GOOGLE DRIVE SETUP MODAL -->
-<div class="modal-overlay" id="drive-setup-modal">
-  <div class="modal" style="width:560px">
-    <h2>☁️ Google Drive 連携設定</h2>
-
-    <!-- 接続済みバー（常に表示、接続時のみ内容が入る） -->
-    <div id="drive-connected-bar" class="gd-connected-bar" style="display:none">
-      <svg width="22" height="22" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#0066da"/>
-        <path d="M43.65 25L29.9 1.2C28.55.4 27 0 25.45 0c-1.55 0-3.1.4-4.45 1.2L6.6 14.45l21.5 37.2 15.55-26.65z" fill="#00ac47"/>
-        <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l6.45 11.25L73.55 76.8z" fill="#ea4335"/>
-        <path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.95 0H34.35C32.8 0 31.25.4 29.9 1.2L43.65 25z" fill="#00832d"/>
-        <path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.45 1.2h50.9c1.55 0 3.1-.4 4.45-1.2L59.8 53z" fill="#2684fc"/>
-        <path d="M73.4 14.5L59.65 1.2C58.3.4 56.75 0 55.2 0h-2.25L43.65 25l16.15 28H87.3c0-1.55-.4-3.1-1.2-4.5L73.4 14.5z" fill="#ffba00"/>
-      </svg>
-      <div class="gd-user">
-        <span id="gd-user-name">接続済み</span>
-        <small id="gd-user-email"></small>
-      </div>
-      <button class="btn btn-danger-outline btn-sm" onclick="gdDisconnect()">連携を解除</button>
-    </div>
-
-    <!-- Step 1: Google Cloud 設定手順（折りたたみ可） -->
-    <details id="gd-step1-details" style="margin-bottom:12px">
-      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);padding:8px 0;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">
-        <span id="gd-step1-arrow" style="font-size:10px">▶</span>
-        🔧 Step 1 — Google Cloud でOAuthクライアントIDを取得（初回のみ）
-      </summary>
-      <div class="gd-modal-section" style="margin-top:8px">
-        <div class="gd-step"><span class="gd-step-num">1</span><span class="gd-step-text"><a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console → 認証情報</a> を開く</span></div>
-        <div class="gd-step"><span class="gd-step-num">2</span><span class="gd-step-text">「認証情報を作成」→「OAuth クライアント ID」→ アプリケーションの種類：<code>ウェブ アプリケーション</code></span></div>
-        <div class="gd-step"><span class="gd-step-num">3</span><span class="gd-step-text">「承認済みのJavaScript生成元」に <code id="gd-origin-hint"></code> を追加して保存</span></div>
-        <div class="gd-step"><span class="gd-step-num">4</span><span class="gd-step-text">Google Drive APIを有効化：<a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank">Drive API ライブラリ</a> → 「有効にする」</span></div>
-        <div class="gd-step"><span class="gd-step-num">5</span><span class="gd-step-text">OAuth同意画面 → スコープに <code>https://www.googleapis.com/auth/drive.file</code> を追加</span></div>
-      </div>
-    </details>
-
-    <!-- Step 2: 設定入力（常に編集可） -->
-    <div class="gd-modal-section">
-      <h4>🔑 クライアントID・フォルダ設定</h4>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div>
-          <label style="display:flex;align-items:center;justify-content:space-between">
-            OAuth クライアントID
-            <button type="button" onclick="gdClearClientId()" style="font-size:11px;color:var(--danger);background:none;border:none;cursor:pointer;padding:0" title="クリア">✕ クリア</button>
-          </label>
-          <input id="gd-client-id-input" placeholder="000000000000-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" style="font-size:12px;font-family:monospace" />
-          <div id="gd-clientid-hint" style="font-size:11px;color:var(--muted);margin-top:4px;display:none">
-            ⚠ 変更すると再ログインが必要です
-          </div>
-        </div>
-        <div>
-          <label>保存フォルダ名<span style="font-weight:400;color:var(--muted)">（省略可 — 省略時はマイドライブのルート）</span></label>
-          <input id="gd-folder-input" placeholder="例: 請求書" />
-        </div>
-      </div>
-    </div>
-
-    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 12px;font-size:12px;color:#78350f;margin-bottom:14px">
-      💡 クライアントIDはこのブラウザのlocalStorageに保存されます。他者と共有するHTMLには含まれません。
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeDriveSetupModal()">閉じる</button>
-      <button class="btn btn-drive" id="gd-save-btn" onclick="gdSaveAndLogin()">
-        ☁️ 保存してGoogleでログイン
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- GOOGLE DRIVE UPLOAD RESULT MODAL -->
-<div class="modal-overlay" id="drive-result-modal">
-  <div class="modal" style="width:480px">
-    <h2>☁️ Google Drive アップロード</h2>
-    <div id="drive-upload-status" style="text-align:center;padding:24px;font-size:14px;color:var(--muted)">📤 アップロード中…</div>
-    <div class="drive-result-box" id="drive-result-box" style="display:none">
-      <div class="drive-result-label">✅ 共有リンクが発行されました</div>
-      <a id="drive-share-link" class="drive-link" href="#" target="_blank"></a>
-      <div class="drive-result-actions">
-        <button class="btn btn-success btn-sm" onclick="gdCopyShareLink()">📋 リンクをコピー</button>
-        <button class="btn btn-outline btn-sm" onclick="window.open(document.getElementById('drive-share-link').href,'_blank')">🔗 Driveで開く</button>
-      </div>
-    </div>
-    <div class="modal-actions" style="margin-top:16px">
-      <button class="btn btn-outline" onclick="closeDriveResultModal()">閉じる</button>
-    </div>
-  </div>
-</div>
-
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -2225,407 +2102,12 @@ function clearAllData() {
   location.reload();
 }
 
-
-// ===== GOOGLE DRIVE INTEGRATION =====
-
-// --- State ---
-let gdAccessToken = null;
-let gdTokenExpiry = 0;
-let gdClientId = localStorage.getItem('gd_client_id') || '';
-let gdFolderName = localStorage.getItem('gd_folder_name') || '';
-let gdFolderId = localStorage.getItem('gd_folder_id') || '';
-let gdUserName = localStorage.getItem('gd_user_name') || '';
-let gdUserEmail = localStorage.getItem('gd_user_email') || '';
-
-const GD_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
-
-// --- Sidebar status update ---
-function gdUpdateSidebarStatus() {
-  const btn = document.getElementById('nav-drive-btn');
-  const label = document.getElementById('nav-drive-label');
-  if (!btn || !label) return;
-  if (gdClientId && gdUserName) {
-    label.textContent = '✅ Drive連携済み';
-    btn.style.color = '#6ee7b7';
-  } else if (gdClientId) {
-    label.textContent = '☁️ Drive（未ログイン）';
-    btn.style.color = '#fbbf24';
-  } else {
-    label.textContent = 'Google Drive連携';
-    btn.style.color = '#8899bb';
-  }
-}
-
-// --- Open setup modal ---
-function openDriveSetupModal() {
-  document.getElementById('gd-origin-hint').textContent = location.origin;
-  // Always populate inputs with current values — editable at all times
-  const input = document.getElementById('gd-client-id-input');
-  input.value = gdClientId;
-  document.getElementById('gd-folder-input').value = gdFolderName;
-
-  // Show connected bar if logged in
-  if (gdClientId && gdUserName) {
-    document.getElementById('drive-connected-bar').style.display = 'flex';
-    document.getElementById('gd-user-name').textContent = gdUserName;
-    document.getElementById('gd-user-email').textContent = gdUserEmail;
-    document.getElementById('gd-save-btn').textContent = '☁️ 保存して再ログイン';
-  } else {
-    document.getElementById('drive-connected-bar').style.display = 'none';
-    document.getElementById('gd-save-btn').textContent = '☁️ 保存してGoogleでログイン';
-  }
-  document.getElementById('gd-clientid-hint').style.display = 'none';
-
-  // Watch for client ID changes to show warning
-  input.oninput = () => {
-    const changed = input.value.trim() !== gdClientId;
-    document.getElementById('gd-clientid-hint').style.display = (changed && gdClientId) ? 'block' : 'none';
-  };
-
-  document.getElementById('drive-setup-modal').classList.add('open');
-}
-
-function closeDriveSetupModal() {
-  document.getElementById('drive-setup-modal').classList.remove('open');
-}
-
-// Clear only the client ID field (keep folder name)
-function gdClearClientId() {
-  document.getElementById('gd-client-id-input').value = '';
-  document.getElementById('gd-clientid-hint').style.display = gdClientId ? 'block' : 'none';
-  document.getElementById('gd-client-id-input').focus();
-}
-
-function gdSaveAndLogin() {
-  const clientId = document.getElementById('gd-client-id-input').value.trim();
-  if (!clientId) { toast('⚠ クライアントIDを入力してください'); return; }
-
-  const clientIdChanged = clientId !== gdClientId;
-  const newFolder = document.getElementById('gd-folder-input').value.trim();
-  const folderChanged = newFolder !== gdFolderName;
-
-  // If client ID changed, clear auth state
-  if (clientIdChanged) {
-    gdAccessToken = null;
-    gdTokenExpiry = 0;
-    gdUserName = '';
-    gdUserEmail = '';
-    localStorage.removeItem('gd_user_name');
-    localStorage.removeItem('gd_user_email');
-  }
-
-  gdClientId = clientId;
-  gdFolderName = newFolder;
-  localStorage.setItem('gd_client_id', gdClientId);
-  localStorage.setItem('gd_folder_name', gdFolderName);
-
-  // Reset folder ID cache if folder name changed
-  if (folderChanged) {
-    gdFolderId = '';
-    localStorage.removeItem('gd_folder_id');
-  }
-
-  gdStartAuth(true);
-}
-
-function gdDisconnect() {
-  if (!confirm('Google Drive連携を解除しますか？\nクライアントIDとログイン情報がすべてクリアされます。')) return;
-  gdAccessToken = null;
-  gdTokenExpiry = 0;
-  gdClientId = '';
-  gdFolderName = '';
-  gdFolderId = '';
-  gdUserName = '';
-  gdUserEmail = '';
-  ['gd_client_id','gd_folder_name','gd_folder_id','gd_user_name','gd_user_email'].forEach(k => localStorage.removeItem(k));
-  // Reset modal UI
-  document.getElementById('drive-connected-bar').style.display = 'none';
-  document.getElementById('gd-client-id-input').value = '';
-  document.getElementById('gd-folder-input').value = '';
-  document.getElementById('gd-clientid-hint').style.display = 'none';
-  document.getElementById('gd-save-btn').textContent = '☁️ 保存してGoogleでログイン';
-  gdUpdateSidebarStatus();
-  toast('Google Drive連携を解除しました');
-}
-
-// --- OAuth2 implicit flow (token in URL hash) ---
-function gdStartAuth(fromSetup = false) {
-  if (!gdClientId) { openDriveSetupModal(); return; }
-  // Store a flag so the redirect can trigger upload
-  if (!fromSetup) sessionStorage.setItem('gd_pending_upload', '1');
-  const params = new URLSearchParams({
-    client_id: gdClientId,
-    redirect_uri: location.origin + location.pathname,
-    response_type: 'token',
-    scope: GD_SCOPE,
-    prompt: 'select_account',
-  });
-  const w = window.open('https://accounts.google.com/o/oauth2/v2/auth?' + params.toString(),
-    'gdauth', 'width=520,height=620,left=200,top=100');
-  if (!w) {
-    // Popup blocked — redirect in same tab
-    sessionStorage.setItem('gd_return_hash', location.hash || '#');
-    location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
-  }
-}
-
-// --- Handle OAuth2 token in URL hash (called on load) ---
-async function gdHandleAuthCallback() {
-  const hash = location.hash;
-  if (!hash.includes('access_token=')) return false;
-  const params = new URLSearchParams(hash.slice(1));
-  const token = params.get('access_token');
-  const expiresIn = parseInt(params.get('expires_in') || '3600');
-  if (!token) return false;
-
-  gdAccessToken = token;
-  gdTokenExpiry = Date.now() + expiresIn * 1000;
-
-  // Fetch user info
-  try {
-    const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    if (r.ok) {
-      const u = await r.json();
-      gdUserName = u.name || u.email || '接続済み';
-      gdUserEmail = u.email || '';
-      localStorage.setItem('gd_user_name', gdUserName);
-      localStorage.setItem('gd_user_email', gdUserEmail);
-    }
-  } catch(e) {}
-
-  // Clean hash
-  history.replaceState(null, '', location.pathname + (sessionStorage.getItem('gd_return_hash') || ''));
-  sessionStorage.removeItem('gd_return_hash');
-
-  gdUpdateSidebarStatus();
-
-  // If we came from setup modal, show confirmation
-  if (!sessionStorage.getItem('gd_pending_upload')) {
-    toast('✅ Google Driveに接続しました！');
-    closeDriveSetupModal();
-    return true;
-  }
-
-  // If we have a pending upload, proceed
-  if (sessionStorage.getItem('gd_pending_upload')) {
-    sessionStorage.removeItem('gd_pending_upload');
-    closeDriveSetupModal();
-    toast('✅ Google Driveに接続しました！PDFをアップロードします…');
-    setTimeout(() => uploadToDrive(), 300);
-  }
-  return true;
-}
-
-// Handle popup callback
-window.addEventListener('message', async (e) => {
-  if (e.data && e.data.type === 'gd_token') {
-    gdAccessToken = e.data.token;
-    gdTokenExpiry = Date.now() + (e.data.expires_in || 3600) * 1000;
-    gdUpdateSidebarStatus();
-  }
-});
-
-// --- Ensure valid token ---
-function gdIsTokenValid() {
-  return gdAccessToken && Date.now() < gdTokenExpiry - 60000;
-}
-
-// --- Get or create Drive folder ---
-async function gdGetOrCreateFolder() {
-  if (!gdFolderName) return null;
-  if (gdFolderId) {
-    // Verify folder still exists
-    try {
-      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${gdFolderId}?fields=id,trashed`, {
-        headers: { Authorization: 'Bearer ' + gdAccessToken }
-      });
-      if (r.ok) {
-        const f = await r.json();
-        if (!f.trashed) return gdFolderId;
-      }
-    } catch(e) {}
-    gdFolderId = '';
-    localStorage.removeItem('gd_folder_id');
-  }
-
-  // Search for existing folder
-  const q = encodeURIComponent(`name='${gdFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
-    headers: { Authorization: 'Bearer ' + gdAccessToken }
-  });
-  if (searchRes.ok) {
-    const data = await searchRes.json();
-    if (data.files && data.files.length > 0) {
-      gdFolderId = data.files[0].id;
-      localStorage.setItem('gd_folder_id', gdFolderId);
-      return gdFolderId;
-    }
-  }
-
-  // Create new folder
-  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + gdAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: gdFolderName, mimeType: 'application/vnd.google-apps.folder' })
-  });
-  if (createRes.ok) {
-    const folder = await createRes.json();
-    gdFolderId = folder.id;
-    localStorage.setItem('gd_folder_id', gdFolderId);
-    return gdFolderId;
-  }
-  return null;
-}
-
-// --- Generate PDF blob (reuse downloadPdf logic) ---
-async function gdGeneratePdfBlob() {
-  if (currentView === 'edit') {
-    collectFormData();
-    renderPreview(currentDoc, 'preview-content');
-    showView('preview');
-    await new Promise(r => setTimeout(r, 300));
-  }
-  const src = document.querySelector('#preview-content .preview-paper');
-  if (!src) throw new Error('プレビューが見つかりません');
-
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;padding:0;margin:0;width:794px;';
-  const clone = src.cloneNode(true);
-  clone.style.cssText = 'border:none!important;border-radius:0!important;box-shadow:none!important;margin:0!important;';
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
-
-  try {
-    const canvas = await html2canvas(wrapper, {
-      scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false,
-      width: wrapper.offsetWidth, height: wrapper.scrollHeight
-    });
-    const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 10;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    if (imgH <= pageH - margin * 2) {
-      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
-    } else {
-      let posY = margin, remaining = imgH, srcY = 0;
-      while (remaining > 0) {
-        const sliceH = Math.min(remaining, pageH - margin * 2);
-        pdf.addImage(imgData, 'PNG', margin, posY - srcY, imgW, imgH);
-        remaining -= sliceH; srcY += sliceH;
-        if (remaining > 0) pdf.addPage();
-      }
-    }
-    return pdf.output('blob');
-  } finally {
-    document.body.removeChild(wrapper);
-  }
-}
-
-// --- Upload PDF blob to Drive ---
-async function gdUploadFile(pdfBlob, filename) {
-  const folderId = await gdGetOrCreateFolder();
-  const metadata = {
-    name: filename,
-    mimeType: 'application/pdf',
-    ...(folderId ? { parents: [folderId] } : {})
-  };
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', pdfBlob, filename);
-
-  const uploadRes = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
-    { method: 'POST', headers: { Authorization: 'Bearer ' + gdAccessToken }, body: form }
-  );
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text();
-    throw new Error('アップロード失敗: ' + err);
-  }
-  const file = await uploadRes.json();
-
-  // Make file shareable (anyone with link can view)
-  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + gdAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role: 'reader', type: 'anyone' })
-  });
-
-  return file;
-}
-
-// --- Main upload entry point ---
-async function uploadToDrive() {
-  if (!gdClientId) {
-    openDriveSetupModal();
-    return;
-  }
-  if (!gdIsTokenValid()) {
-    sessionStorage.setItem('gd_pending_upload', '1');
-    gdStartAuth(false);
-    return;
-  }
-
-  // Show result modal with loading state
-  const statusEl = document.getElementById('drive-upload-status');
-  const resultBox = document.getElementById('drive-result-box');
-  statusEl.textContent = '📄 PDF生成中…';
-  statusEl.style.display = 'block';
-  resultBox.style.display = 'none';
-  document.getElementById('drive-result-modal').classList.add('open');
-
-  try {
-    // Generate PDF
-    const pdfBlob = await gdGeneratePdfBlob();
-    statusEl.textContent = '☁️ Google Driveにアップロード中…';
-
-    // Build filename
-    const doc = currentDoc || {};
-    const typeName = doc.type === 'invoice' ? '請求書' : '領収書';
-    const filename = `${typeName}_${doc.number || ''}${doc.client?.name ? '_' + doc.client.name : ''}.pdf`;
-
-    // Upload
-    const file = await gdUploadFile(pdfBlob, filename);
-
-    // Show result
-    statusEl.style.display = 'none';
-    const shareLink = document.getElementById('drive-share-link');
-    shareLink.href = file.webViewLink;
-    shareLink.textContent = file.webViewLink;
-    resultBox.style.display = 'block';
-    toast('✅ Google Driveにアップロードしました！');
-  } catch(e) {
-    console.error(e);
-    statusEl.textContent = '⚠ エラーが発生しました: ' + e.message;
-    toast('⚠ アップロードに失敗しました');
-  }
-}
-
-function closeDriveResultModal() {
-  document.getElementById('drive-result-modal').classList.remove('open');
-}
-
-function gdCopyShareLink() {
-  const link = document.getElementById('drive-share-link').href;
-  navigator.clipboard.writeText(link).then(() => toast('📋 共有リンクをコピーしました！'));
-}
-
 // ===== INIT =====
-window.addEventListener('load', async () => {
-  // Handle Google OAuth2 callback (token in hash)
-  const isGdCallback = await gdHandleAuthCallback();
-  if (isGdCallback) return;
-
+window.addEventListener('load', () => {
   if (location.hash.startsWith('#share=')) { checkSharedUrl(); return; }
   updateSidebarProfile();
   renderFilterTabs();
   renderDocList();
-  gdUpdateSidebarStatus();
 });
 window.addEventListener('hashchange', checkSharedUrl);
 
@@ -2638,6 +2120,160 @@ document.addEventListener('click', e => {
     popup.style.display = 'none';
   }
 });
+
+// ======== GOOGLE DRIVE ========
+let driveClientId = localStorage.getItem('drive_client_id') || '';
+let driveAccessToken = '';
+let driveShareUrl = '';
+
+function openDriveSettings() {
+  closeDataModal();
+  document.getElementById('drive-client-id-input').value = driveClientId;
+  document.getElementById('drive-settings-modal').classList.add('open');
+}
+function closeDriveSettings() { document.getElementById('drive-settings-modal').classList.remove('open'); }
+function saveDriveSettings() {
+  driveClientId = document.getElementById('drive-client-id-input').value.trim();
+  localStorage.setItem('drive_client_id', driveClientId);
+  closeDriveSettings();
+  toast('✅ Drive設定を保存しました');
+}
+function openDriveGuide() {
+  closeDriveSettings();
+  // open guide in new tab if on github pages, else show instructions
+  window.open('drive-setup-guide.html', '_blank');
+}
+function closeDriveResult() { document.getElementById('drive-result-modal').classList.remove('open'); }
+function copyDriveUrl() {
+  navigator.clipboard.writeText(driveShareUrl).then(() => toast('📋 URLをコピーしました'));
+}
+
+async function generatePdfBlob() {
+  const src = document.querySelector('#preview-content .preview-paper');
+  if (!src) return null;
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;padding:0;margin:0;width:794px;';
+  const clone = src.cloneNode(true);
+  clone.style.cssText = 'border:none!important;border-radius:0!important;box-shadow:none!important;margin:0!important;';
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+  try {
+    const canvas = await html2canvas(wrapper, {scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false, width:wrapper.offsetWidth, height:wrapper.scrollHeight});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const imgW = pageW - margin*2;
+    const imgData = canvas.toDataURL('image/png');
+    const imgH = (canvas.height * imgW) / canvas.width;
+    if (imgH <= pageH - margin*2) {
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
+    } else {
+      let srcY = 0; let remaining = imgH;
+      while (remaining > 0) {
+        const sliceH = Math.min(remaining, pageH - margin*2);
+        pdf.addImage(imgData, 'PNG', margin, margin - srcY, imgW, imgH);
+        remaining -= sliceH; srcY += sliceH;
+        if (remaining > 0) pdf.addPage();
+      }
+    }
+    return pdf.output('blob');
+  } finally {
+    document.body.removeChild(wrapper);
+  }
+}
+
+function getGoogleAccessToken() {
+  return new Promise((resolve, reject) => {
+    if (!window.google || !window.google.accounts) { reject(new Error('Google APIが読み込まれていません')); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: driveClientId,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: (resp) => { if (resp.error) reject(new Error(resp.error)); else resolve(resp.access_token); }
+    });
+    client.requestAccessToken();
+  });
+}
+
+async function uploadToDrive() {
+  if (!driveClientId) {
+    toast('⚠ まずデータ管理→Drive設定でClient IDを入力してください');
+    openDriveSettings();
+    return;
+  }
+  if (!window.html2canvas || !window.jspdf) { toast('⚠ ライブラリ読み込み中です。少し待ってから再試行してください'); return; }
+  if (currentView === 'edit') {
+    collectFormData();
+    renderPreview(currentDoc, 'preview-content');
+    showView('preview');
+    await new Promise(r => setTimeout(r, 300));
+  }
+  toast('🔑 Googleログイン中…');
+  try {
+    driveAccessToken = await getGoogleAccessToken();
+  } catch(e) {
+    toast('⚠ Googleログインに失敗しました: ' + e.message); return;
+  }
+  toast('📄 PDF生成中…');
+  const pdfBlob = await generatePdfBlob();
+  if (!pdfBlob) { toast('⚠ PDF生成に失敗しました'); return; }
+  const doc = currentDoc || {};
+  const typeName = doc.type === 'invoice' ? '請求書' : '領収書';
+  const filename = typeName + '_' + (doc.number||'') + (doc.client?.name ? '_'+doc.client.name : '') + '.pdf';
+  toast('📤 アップロード中…');
+  try {
+    const metadata = {name: filename, mimeType: 'application/pdf'};
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+    form.append('file', pdfBlob);
+    const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+      method:'POST', headers:{Authorization:'Bearer '+driveAccessToken}, body:form
+    });
+    if (!uploadRes.ok) throw new Error('Upload failed: ' + uploadRes.status);
+    const fileData = await uploadRes.json();
+    await fetch('https://www.googleapis.com/drive/v3/files/'+fileData.id+'/permissions', {
+      method:'POST', headers:{Authorization:'Bearer '+driveAccessToken, 'Content-Type':'application/json'},
+      body:JSON.stringify({role:'reader', type:'anyone'})
+    });
+    driveShareUrl = 'https://drive.google.com/file/d/'+fileData.id+'/view';
+    document.getElementById('drive-share-url-box').textContent = driveShareUrl;
+    document.getElementById('drive-result-modal').classList.add('open');
+    navigator.clipboard.writeText(driveShareUrl).catch(()=>{});
+    toast('✅ アップロード完了！');
+  } catch(e) {
+    console.error(e);
+    toast('⚠ アップロードに失敗しました: ' + e.message);
+  }
+}
+
 </script>
+
+<!-- DRIVE SETTINGS MODAL -->
+<div class="modal-overlay" id="drive-settings-modal">
+  <div class="modal" style="max-width:520px">
+    <h2>⚙️ Google Drive 設定</h2>
+    <p style="font-size:13px;color:#64748b;margin-bottom:16px">Google Cloud ConsoleのOAuth2クライアントIDを入力してください。<a href="#" onclick="openDriveGuide();return false" style="color:#2563eb">設定手順を見る</a></p>
+    <label style="font-size:13px;font-weight:600">クライアントID</label>
+    <input id="drive-client-id-input" type="text" placeholder="xxxxx.apps.googleusercontent.com" style="width:100%;margin:6px 0 16px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeDriveSettings()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveDriveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRIVE UPLOAD RESULT MODAL -->
+<div class="modal-overlay" id="drive-result-modal">
+  <div class="modal" style="max-width:480px">
+    <h2>✅ アップロード完了</h2>
+    <p style="font-size:13px;color:#64748b;margin-bottom:12px">Google Driveに保存しました。下のURLを共有してください。</p>
+    <div id="drive-share-url-box" style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;font-size:13px;word-break:break-all;margin-bottom:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeDriveResult()">閉じる</button>
+      <button class="btn btn-primary" onclick="copyDriveUrl()">📋 URLをコピー</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
