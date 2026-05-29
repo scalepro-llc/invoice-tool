@@ -1012,7 +1012,7 @@ function renderItems() {
       ? `<div class="incl-hint">税抜: ${fmtYen(inclToExcl(item.price||0, Number(item.tax)||0))}/単位</div>` : '';
 
     const totalCellContent = isDirect
-      ? `<input class="direct-amount-input" type="number" min="0" value="${item.directAmountVal||0}" oninput="updateItem(${i},'directAmountVal',this.value)" style="text-align:right" />
+      ? `<input class="direct-amount-input" type="number" min="0" value="${item.directAmountVal||0}" onchange="updateItem(${i},'directAmountVal',this.value)" style="text-align:right" />
          <div><span class="badge-direct">直接入力</span></div>`
       : (isIncl
           ? `${fmtYen(amt.incl)}<br><span class="badge-incl">税込</span>`
@@ -1023,11 +1023,11 @@ function renderItems() {
     return `<tr ${dragAttrs}>
       ${dragCell}
       <td class="col-name"><div class="name-cell"><input value="${escape_html(item.name)}" oninput="updateItem(${i},'name',this.value)" placeholder="商品・サービス名" /><button class="pick-btn" onclick="openItemPicker(${i})" title="品目マスタから選択">📋</button></div></td>
-      <td class="col-qty"><input type="number" min="0" step="0.01" value="${item.qty||0}" oninput="updateItem(${i},'qty',this.value)" style="text-align:right" ${isDirect?'disabled':''}></td>
+      <td class="col-qty"><input type="number" min="0" step="0.01" value="${item.qty||0}" onchange="updateItem(${i},'qty',this.value)" style="text-align:right" ${isDirect?'disabled':''}></td>
       <td class="col-unit"><input value="${escape_html(item.unit||'')}" oninput="updateItem(${i},'unit',this.value)" ${isDirect?'disabled':''}></td>
       <td class="col-price">
         <div class="price-cell">
-          <input type="number" min="0" step="1" value="${item.price||0}" oninput="updateItem(${i},'price',this.value)" style="text-align:right" ${isDirect?'disabled':''}>
+          <input type="number" min="0" step="1" value="${item.price||0}" onchange="updateItem(${i},'price',this.value)" style="text-align:right" ${isDirect?'disabled':''}>
           ${!isDirect ? `<div class="price-type-toggle">
             <button class="${!isIncl?'on-ex':''}" onclick="updateItem(${i},'priceType','ex')">税抜</button>
             <button class="${isIncl?'on-in':''}" onclick="updateItem(${i},'priceType','in')">税込</button>
@@ -1983,4 +1983,4 @@ document.addEventListener('click', e => {
 });
 </script>
 </body>
-</html>
+</htm
