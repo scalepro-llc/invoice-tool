@@ -1707,8 +1707,8 @@ async function downloadPdf() {
     showView('preview');
     await new Promise(r => setTimeout(r, 300));
   }
-  const el = document.querySelector('#preview-content .preview-paper');
-  if (!el) { toast('⚠ プレビューを開いてから実行してください'); return; }
+  const src = document.querySelector('#preview-content .preview-paper');
+  if (!src) { toast('⚠ プレビューを開いてから実行してください'); return; }
 
   if (!window.html2canvas || !window.jspdf) {
     toast('⚠ ライブラリ読み込み中です。インターネット接続を確認して再度お試しください');
@@ -1716,29 +1716,45 @@ async function downloadPdf() {
   }
 
   toast('📄 PDF生成中…');
+
+  // 一時コンテナに複製してキャプチャ（ツールUIを除外）
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;padding:0;margin:0;width:794px;';
+  const clone = src.cloneNode(true);
+  clone.style.cssText = 'border:none!important;border-radius:0!important;box-shadow:none!important;margin:0!important;';
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
   try {
-    const canvas = await html2canvas(el, {
+    const canvas = await html2canvas(wrapper, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
-      logging: false
+      logging: false,
+      width: wrapper.offsetWidth,
+      height: wrapper.scrollHeight
     });
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
+    const margin = 10;
+    const imgW = pageW - margin * 2;
     const imgH = (canvas.height * imgW) / canvas.width;
-    // 複数ページ対応
-    if (imgH <= pageH) {
-      pdf.addImage(imgData, 'PNG', 0, 0, imgW, imgH);
+    if (imgH <= pageH - margin * 2) {
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW, imgH);
     } else {
-      let y = 0;
-      while (y < imgH) {
-        if (y > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, -y, imgW, imgH);
-        y += pageH;
+      // 複数ページ対応
+      let posY = margin;
+      let remaining = imgH;
+      let srcY = 0;
+      while (remaining > 0) {
+        const sliceH = Math.min(remaining, pageH - margin * 2);
+        pdf.addImage(imgData, 'PNG', margin, posY - srcY, imgW, imgH);
+        remaining -= sliceH;
+        srcY += sliceH;
+        if (remaining > 0) { pdf.addPage(); }
       }
     }
     const doc = currentDoc || {};
@@ -1749,6 +1765,8 @@ async function downloadPdf() {
   } catch(e) {
     console.error(e);
     toast('⚠ PDF生成に失敗しました');
+  } finally {
+    document.body.removeChild(wrapper);
   }
 }
 
@@ -2075,29 +2093,4 @@ function importData(input) {
 }
 
 function clearAllData() {
-  if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は元に戻せません。')) return;
-  ['invoice_docs','invoice_profiles','invoice_clients','invoice_items','invoice_active_profile'].forEach(k => localStorage.removeItem(k));
-  location.reload();
-}
-
-// ===== INIT =====
-window.addEventListener('load', () => {
-  if (location.hash.startsWith('#share=')) { checkSharedUrl(); return; }
-  updateSidebarProfile();
-  renderFilterTabs();
-  renderDocList();
-});
-window.addEventListener('hashchange', checkSharedUrl);
-
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.classList.remove('open'); });
-});
-document.addEventListener('click', e => {
-  const popup = document.getElementById('col-popup');
-  if (popup && !popup.closest('.col-settings-wrap').contains(e.target)) {
-    popup.style.display = 'none';
-  }
-});
-</script>
-</body>
-</html>
+  if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は元に戻せません。'))
