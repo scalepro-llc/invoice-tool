@@ -673,6 +673,7 @@
   <div class="modal" style="width:560px">
     <h2>☁️ Google Drive 連携設定</h2>
 
+    <!-- 接続済みバー（常に表示、接続時のみ内容が入る） -->
     <div id="drive-connected-bar" class="gd-connected-bar" style="display:none">
       <svg width="22" height="22" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
         <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L27.5 53H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#0066da"/>
@@ -689,33 +690,44 @@
       <button class="btn btn-danger-outline btn-sm" onclick="gdDisconnect()">連携を解除</button>
     </div>
 
-    <div id="drive-setup-steps">
-      <div class="gd-modal-section">
-        <h4>🔧 Step 1 — Google Cloud でOAuthクライアントIDを取得</h4>
+    <!-- Step 1: Google Cloud 設定手順（折りたたみ可） -->
+    <details id="gd-step1-details" style="margin-bottom:12px">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);padding:8px 0;user-select:none;list-style:none;display:flex;align-items:center;gap:6px">
+        <span id="gd-step1-arrow" style="font-size:10px">▶</span>
+        🔧 Step 1 — Google Cloud でOAuthクライアントIDを取得（初回のみ）
+      </summary>
+      <div class="gd-modal-section" style="margin-top:8px">
         <div class="gd-step"><span class="gd-step-num">1</span><span class="gd-step-text"><a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console → 認証情報</a> を開く</span></div>
         <div class="gd-step"><span class="gd-step-num">2</span><span class="gd-step-text">「認証情報を作成」→「OAuth クライアント ID」→ アプリケーションの種類：<code>ウェブ アプリケーション</code></span></div>
         <div class="gd-step"><span class="gd-step-num">3</span><span class="gd-step-text">「承認済みのJavaScript生成元」に <code id="gd-origin-hint"></code> を追加して保存</span></div>
         <div class="gd-step"><span class="gd-step-num">4</span><span class="gd-step-text">Google Drive APIを有効化：<a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank">Drive API ライブラリ</a> → 「有効にする」</span></div>
         <div class="gd-step"><span class="gd-step-num">5</span><span class="gd-step-text">OAuth同意画面 → スコープに <code>https://www.googleapis.com/auth/drive.file</code> を追加</span></div>
       </div>
+    </details>
 
-      <div class="gd-modal-section">
-        <h4>🔑 Step 2 — クライアントIDを入力して接続</h4>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <div>
-            <label>OAuth クライアントID</label>
-            <input id="gd-client-id-input" placeholder="000000000000-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" style="font-size:12px;font-family:monospace" />
-          </div>
-          <div>
-            <label>保存フォルダ名（省略可 — 省略時はマイドライブのルートに保存）</label>
-            <input id="gd-folder-input" placeholder="例: 請求書" />
+    <!-- Step 2: 設定入力（常に編集可） -->
+    <div class="gd-modal-section">
+      <h4>🔑 クライアントID・フォルダ設定</h4>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="display:flex;align-items:center;justify-content:space-between">
+            OAuth クライアントID
+            <button type="button" onclick="gdClearClientId()" style="font-size:11px;color:var(--danger);background:none;border:none;cursor:pointer;padding:0" title="クリア">✕ クリア</button>
+          </label>
+          <input id="gd-client-id-input" placeholder="000000000000-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" style="font-size:12px;font-family:monospace" />
+          <div id="gd-clientid-hint" style="font-size:11px;color:var(--muted);margin-top:4px;display:none">
+            ⚠ 変更すると再ログインが必要です
           </div>
         </div>
+        <div>
+          <label>保存フォルダ名<span style="font-weight:400;color:var(--muted)">（省略可 — 省略時はマイドライブのルート）</span></label>
+          <input id="gd-folder-input" placeholder="例: 請求書" />
+        </div>
       </div>
+    </div>
 
-      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px;font-size:12px;color:#78350f;margin-bottom:14px">
-        💡 クライアントIDはこのブラウザのlocalStorageに保存されます。他者と共有するHTMLには含まれません。
-      </div>
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px 12px;font-size:12px;color:#78350f;margin-bottom:14px">
+      💡 クライアントIDはこのブラウザのlocalStorageに保存されます。他者と共有するHTMLには含まれません。
     </div>
 
     <div class="modal-actions">
@@ -2246,44 +2258,78 @@ function gdUpdateSidebarStatus() {
 
 // --- Open setup modal ---
 function openDriveSetupModal() {
-  const modal = document.getElementById('drive-setup-modal');
   document.getElementById('gd-origin-hint').textContent = location.origin;
-  document.getElementById('gd-client-id-input').value = gdClientId;
+  // Always populate inputs with current values — editable at all times
+  const input = document.getElementById('gd-client-id-input');
+  input.value = gdClientId;
   document.getElementById('gd-folder-input').value = gdFolderName;
 
+  // Show connected bar if logged in
   if (gdClientId && gdUserName) {
     document.getElementById('drive-connected-bar').style.display = 'flex';
     document.getElementById('gd-user-name').textContent = gdUserName;
     document.getElementById('gd-user-email').textContent = gdUserEmail;
-    document.getElementById('drive-setup-steps').style.opacity = '0.5';
-    document.getElementById('gd-save-btn').textContent = '☁️ 再ログイン';
+    document.getElementById('gd-save-btn').textContent = '☁️ 保存して再ログイン';
   } else {
     document.getElementById('drive-connected-bar').style.display = 'none';
-    document.getElementById('drive-setup-steps').style.opacity = '1';
     document.getElementById('gd-save-btn').textContent = '☁️ 保存してGoogleでログイン';
   }
-  modal.classList.add('open');
+  document.getElementById('gd-clientid-hint').style.display = 'none';
+
+  // Watch for client ID changes to show warning
+  input.oninput = () => {
+    const changed = input.value.trim() !== gdClientId;
+    document.getElementById('gd-clientid-hint').style.display = (changed && gdClientId) ? 'block' : 'none';
+  };
+
+  document.getElementById('drive-setup-modal').classList.add('open');
 }
 
 function closeDriveSetupModal() {
   document.getElementById('drive-setup-modal').classList.remove('open');
 }
 
+// Clear only the client ID field (keep folder name)
+function gdClearClientId() {
+  document.getElementById('gd-client-id-input').value = '';
+  document.getElementById('gd-clientid-hint').style.display = gdClientId ? 'block' : 'none';
+  document.getElementById('gd-client-id-input').focus();
+}
+
 function gdSaveAndLogin() {
   const clientId = document.getElementById('gd-client-id-input').value.trim();
   if (!clientId) { toast('⚠ クライアントIDを入力してください'); return; }
+
+  const clientIdChanged = clientId !== gdClientId;
+  const newFolder = document.getElementById('gd-folder-input').value.trim();
+  const folderChanged = newFolder !== gdFolderName;
+
+  // If client ID changed, clear auth state
+  if (clientIdChanged) {
+    gdAccessToken = null;
+    gdTokenExpiry = 0;
+    gdUserName = '';
+    gdUserEmail = '';
+    localStorage.removeItem('gd_user_name');
+    localStorage.removeItem('gd_user_email');
+  }
+
   gdClientId = clientId;
-  gdFolderName = document.getElementById('gd-folder-input').value.trim();
+  gdFolderName = newFolder;
   localStorage.setItem('gd_client_id', gdClientId);
   localStorage.setItem('gd_folder_name', gdFolderName);
-  // Reset folder cache when folder name changes
-  gdFolderId = '';
-  localStorage.removeItem('gd_folder_id');
+
+  // Reset folder ID cache if folder name changed
+  if (folderChanged) {
+    gdFolderId = '';
+    localStorage.removeItem('gd_folder_id');
+  }
+
   gdStartAuth(true);
 }
 
 function gdDisconnect() {
-  if (!confirm('Google Drive連携を解除しますか？')) return;
+  if (!confirm('Google Drive連携を解除しますか？\nクライアントIDとログイン情報がすべてクリアされます。')) return;
   gdAccessToken = null;
   gdTokenExpiry = 0;
   gdClientId = '';
@@ -2292,7 +2338,12 @@ function gdDisconnect() {
   gdUserName = '';
   gdUserEmail = '';
   ['gd_client_id','gd_folder_name','gd_folder_id','gd_user_name','gd_user_email'].forEach(k => localStorage.removeItem(k));
-  closeDriveSetupModal();
+  // Reset modal UI
+  document.getElementById('drive-connected-bar').style.display = 'none';
+  document.getElementById('gd-client-id-input').value = '';
+  document.getElementById('gd-folder-input').value = '';
+  document.getElementById('gd-clientid-hint').style.display = 'none';
+  document.getElementById('gd-save-btn').textContent = '☁️ 保存してGoogleでログイン';
   gdUpdateSidebarStatus();
   toast('Google Drive連携を解除しました');
 }
