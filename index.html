@@ -102,6 +102,33 @@
   .badge-incl { font-size: 9px; background: #fef3c7; color: #b45309; border-radius: 3px; padding: 1px 4px; font-weight: 700; vertical-align: middle; }
   .badge-excl { font-size: 9px; background: #e0f2fe; color: #0369a1; border-radius: 3px; padding: 1px 4px; font-weight: 700; vertical-align: middle; }
 
+  /* ===== DRAG & DROP ===== */
+  .col-drag { width: 24px; text-align: center; }
+  .drag-handle { font-size: 15px; opacity: 0.3; cursor: grab; user-select: none; display: inline-block; line-height: 1; }
+  .drag-handle:hover { opacity: 0.8; }
+  .items-table tr.drag-over td { background: #eff6ff !important; }
+
+  /* ===== TEXT ROW ===== */
+  .text-row-input { width: 100%; background: transparent; border: none; border-bottom: 1px dashed var(--border); color: var(--muted); font-size: 13px; font-style: italic; padding: 4px 2px; }
+  .text-row-input:focus { outline: none; border-bottom-color: var(--primary); color: var(--text); }
+  .text-row-badge { font-size: 9px; background: #f3f4f6; color: var(--muted); border-radius: 3px; padding: 1px 5px; font-weight: 600; margin-right: 4px; vertical-align: middle; }
+
+  /* ===== DIRECT AMOUNT ===== */
+  .direct-amount-input { width: 100%; text-align: right; font-weight: 700; font-size: 13px; }
+  .direct-hint { font-size: 10px; color: var(--muted); text-align: right; margin-top: 2px; }
+  .direct-hint a { color: var(--primary); text-decoration: none; }
+  .direct-hint a:hover { text-decoration: underline; }
+  .badge-direct { font-size: 9px; background: #f0fdf4; color: #16a34a; border-radius: 3px; padding: 1px 4px; font-weight: 700; vertical-align: middle; }
+
+  /* ===== COL SETTINGS ===== */
+  .col-settings-wrap { position: relative; }
+  .col-settings-popup { position: absolute; right: 0; top: calc(100% + 4px); background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 50; min-width: 150px; font-size: 13px; }
+  .col-settings-popup .cs-title { font-weight: 700; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .col-settings-popup label { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; user-select: none; }
+  .items-table.hide-qty .col-qty { display: none; }
+  .items-table.hide-unit .col-unit { display: none; }
+  .items-table.hide-tax .col-tax { display: none; }
+
   /* ===== TOTALS ===== */
   .totals-block { display: flex; justify-content: flex-end; margin-top: 20px; }
   .totals-table { width: 320px; }
@@ -605,6 +632,8 @@ let generatedUrl = '';
 let pickerTargetRow = -1;
 let filterProfile = '';   // '' = all, or profileId
 let filterType = '';      // '' = all, 'invoice', 'receipt'
+let colSettings = JSON.parse(localStorage.getItem('invoice_col_settings') || '{"qty":true,"unit":true,"tax":true}');
+let dragSrcIdx = -1;
 
 // ===== MIGRATION: old single settings → profile =====
 (function migrate() {
@@ -787,11 +816,24 @@ function renderEditForm() {
     <div class="card">
       <div class="card-header">
         <h3>明細</h3>
-        <button class="btn btn-outline btn-sm" onclick="addItem()">＋ 行を追加</button>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="addItem()">＋ 通常行</button>
+          <button class="btn btn-outline btn-sm" onclick="addTextRow()">＋ テキスト行</button>
+          <div class="col-settings-wrap">
+            <button class="btn btn-outline btn-sm" onclick="toggleColPopup(event)" title="列の表示設定">⚙ 列設定</button>
+            <div class="col-settings-popup" id="col-popup" style="display:none">
+              <div class="cs-title">表示する列</div>
+              <label><input type="checkbox" id="cs-qty" onchange="toggleCol('qty',this.checked)"> 数量</label>
+              <label><input type="checkbox" id="cs-unit" onchange="toggleCol('unit',this.checked)"> 単位</label>
+              <label><input type="checkbox" id="cs-tax" onchange="toggleCol('tax',this.checked)"> 税率</label>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="card-body" style="padding:0;overflow-x:auto">
-        <table class="items-table">
+        <table class="items-table" id="items-table">
           <thead><tr>
+            <th class="col-drag"></th>
             <th class="col-name">品目・摘要</th>
             <th class="col-qty">数量</th>
             <th class="col-unit">単位</th>
@@ -831,7 +873,12 @@ function onIssuerProfileChange(pid) {
 
 function addItem() {
   collectFormData();
-  currentDoc.items.push({ name:'', qty:1, unit:'式', price:0, tax:10 });
+  currentDoc.items.push({ rowType:'item', name:'', qty:1, unit:'式', price:0, tax:10 });
+  renderItems();
+}
+function addTextRow() {
+  collectFormData();
+  currentDoc.items.push({ rowType:'text', name:'' });
   renderItems();
 }
 function removeItem(i) {
@@ -847,6 +894,13 @@ function inclToExcl(totalIncl, taxRate) {
 }
 // per-item display total (always returns {excl, incl})
 function itemAmounts(item) {
+  if (item.rowType === 'text') return { excl: 0, incl: 0 };
+  if (item.directAmount) {
+    const val = item.directAmountVal || 0;
+    const rate = Number(item.tax) || 0;
+    const taxAmt = rate === 10 ? Math.floor(val * 0.1) : rate === 8 ? Math.floor(val * 0.08) : 0;
+    return { excl: val, incl: val + taxAmt };
+  }
   const qty = item.qty || 0;
   const price = item.price || 0;
   const rate = Number(item.tax) || 0;
@@ -863,27 +917,107 @@ function itemAmounts(item) {
   }
 }
 
+function textRowColspan() {
+  return 4 + (colSettings.qty?1:0) + (colSettings.unit?1:0) + (colSettings.tax?1:0);
+}
+function applyColSettings() {
+  const t = document.getElementById('items-table');
+  if (!t) return;
+  t.classList.toggle('hide-qty', !colSettings.qty);
+  t.classList.toggle('hide-unit', !colSettings.unit);
+  t.classList.toggle('hide-tax', !colSettings.tax);
+  // sync checkboxes
+  ['qty','unit','tax'].forEach(c => {
+    const cb = document.getElementById('cs-'+c);
+    if (cb) cb.checked = !!colSettings[c];
+  });
+}
+function toggleColPopup(e) {
+  e.stopPropagation();
+  const p = document.getElementById('col-popup');
+  if (!p) return;
+  const isOpen = p.style.display !== 'none';
+  p.style.display = isOpen ? 'none' : 'block';
+}
+function toggleCol(col, val) {
+  colSettings[col] = val;
+  localStorage.setItem('invoice_col_settings', JSON.stringify(colSettings));
+  applyColSettings();
+}
+// Drag & Drop
+function dragStart(e, i) {
+  dragSrcIdx = i;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.style.opacity = '0.5';
+}
+function dragEnd(e) {
+  e.currentTarget.style.opacity = '';
+  document.querySelectorAll('#items-body tr').forEach(tr => tr.classList.remove('drag-over'));
+}
+function dragOver(e, i) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('#items-body tr').forEach((tr, idx) => tr.classList.toggle('drag-over', idx===i && idx!==dragSrcIdx));
+}
+function dropItem(e, i) {
+  e.preventDefault();
+  document.querySelectorAll('#items-body tr').forEach(tr => tr.classList.remove('drag-over'));
+  if (dragSrcIdx < 0 || dragSrcIdx === i) { dragSrcIdx = -1; return; }
+  collectFormData();
+  const [moved] = currentDoc.items.splice(dragSrcIdx, 1);
+  currentDoc.items.splice(i, 0, moved);
+  dragSrcIdx = -1;
+  renderItems();
+}
+
 function renderItems() {
   const tbody = document.getElementById('items-body');
   if (!tbody) return;
-  tbody.innerHTML = currentDoc.items.map((item,i) => {
+  tbody.innerHTML = currentDoc.items.map((item, i) => {
+    const dragAttrs = `draggable="true" ondragstart="dragStart(event,${i})" ondragend="dragEnd(event)" ondragover="dragOver(event,${i})" ondrop="dropItem(event,${i})"`;
+    const dragCell = `<td class="col-drag"><span class="drag-handle" title="ドラッグして並べ替え">⠿</span></td>`;
+    const delCell = `<td class="col-del"><button class="btn btn-icon btn-danger-outline" onclick="removeItem(${i})" title="削除">✕</button></td>`;
+
+    // TEXT ROW
+    if (item.rowType === 'text') {
+      return `<tr ${dragAttrs}>
+        ${dragCell}
+        <td colspan="${textRowColspan()}">
+          <span class="text-row-badge">TEXT</span><input class="text-row-input" value="${escape_html(item.name)}" oninput="updateItem(${i},'name',this.value)" placeholder="テキスト・区切り・注釈など自由に入力…" />
+        </td>
+        ${delCell}
+      </tr>`;
+    }
+
+    // NORMAL ITEM ROW
     const pType = item.priceType || 'ex';
     const isIncl = pType === 'in';
+    const isDirect = !!item.directAmount;
     const amt = itemAmounts(item);
     const backCalcHint = isIncl && item.tax > 0
       ? `<div class="incl-hint">税抜: ${fmtYen(inclToExcl(item.price||0, Number(item.tax)||0))}/単位</div>` : '';
-    return `<tr>
+
+    const totalCellContent = isDirect
+      ? `<input class="direct-amount-input" type="number" min="0" value="${item.directAmountVal||0}" oninput="updateItem(${i},'directAmountVal',this.value)" style="text-align:right" />
+         <div><span class="badge-direct">直接入力</span></div>`
+      : (isIncl
+          ? `${fmtYen(amt.incl)}<br><span class="badge-incl">税込</span>`
+          : `${fmtYen(amt.excl)}<br><span class="badge-excl">税抜</span>`);
+
+    const directToggleLink = `<div class="direct-hint"><a href="#" onclick="updateItem(${i},'directAmount',${!isDirect});return false">${isDirect ? '↩ 計算式に戻す' : '✏ 金額直接入力'}</a></div>`;
+
+    return `<tr ${dragAttrs}>
+      ${dragCell}
       <td class="col-name"><div class="name-cell"><input value="${escape_html(item.name)}" oninput="updateItem(${i},'name',this.value)" placeholder="商品・サービス名" /><button class="pick-btn" onclick="openItemPicker(${i})" title="品目マスタから選択">📋</button></div></td>
-      <td class="col-qty"><input type="number" min="0" step="0.01" value="${item.qty}" oninput="updateItem(${i},'qty',this.value)" style="text-align:right" /></td>
-      <td class="col-unit"><input value="${escape_html(item.unit)}" oninput="updateItem(${i},'unit',this.value)" /></td>
+      <td class="col-qty"><input type="number" min="0" step="0.01" value="${item.qty||0}" oninput="updateItem(${i},'qty',this.value)" style="text-align:right" ${isDirect?'disabled':''}></td>
+      <td class="col-unit"><input value="${escape_html(item.unit||'')}" oninput="updateItem(${i},'unit',this.value)" ${isDirect?'disabled':''}></td>
       <td class="col-price">
         <div class="price-cell">
-          <input type="number" min="0" step="1" value="${item.price}" oninput="updateItem(${i},'price',this.value)" style="text-align:right" />
-          <div class="price-type-toggle">
+          <input type="number" min="0" step="1" value="${item.price||0}" oninput="updateItem(${i},'price',this.value)" style="text-align:right" ${isDirect?'disabled':''}>
+          ${!isDirect ? `<div class="price-type-toggle">
             <button class="${!isIncl?'on-ex':''}" onclick="updateItem(${i},'priceType','ex')">税抜</button>
             <button class="${isIncl?'on-in':''}" onclick="updateItem(${i},'priceType','in')">税込</button>
-          </div>
-          ${backCalcHint}
+          </div>${backCalcHint}` : ''}
         </div>
       </td>
       <td class="col-tax">
@@ -893,18 +1027,15 @@ function renderItems() {
           <option value="0" ${item.tax==0?'selected':''}>非課税</option>
         </select>
       </td>
-      <td class="col-total" id="rowtotal-${i}">
-        ${isIncl
-          ? `${fmtYen(amt.incl)}<br><span class="badge-incl">税込</span>`
-          : `${fmtYen(amt.excl)}<br><span class="badge-excl">税抜</span>`}
-      </td>
-      <td class="col-del"><button class="btn btn-icon btn-danger-outline" onclick="removeItem(${i})" title="削除">✕</button></td>
+      <td class="col-total">${totalCellContent}${directToggleLink}</td>
+      ${delCell}
     </tr>`;
   }).join('');
   renderTotals();
+  applyColSettings();
 }
 function updateItem(i, field, val) {
-  if (field==='qty'||field==='price'||field==='tax') val = parseFloat(val)||0;
+  if (field==='qty'||field==='price'||field==='tax'||field==='directAmountVal') val = parseFloat(val)||0;
   currentDoc.items[i][field] = val;
   renderItems(); // full re-render to update hints and totals
 }
@@ -1255,18 +1386,27 @@ function renderPreview(doc, targetId) {
   const isInvoice = doc.type==='invoice';
   const issuer = doc.issuer || profiles.find(p=>p.id===doc.profileId) || {};
   const itemsHtml = doc.items.map(it => {
+    // テキスト行
+    if (it.rowType === 'text') {
+      return it.name ? `<tr><td colspan="5" style="color:#9ca3af;font-style:italic;padding:6px 10px">${escape_html(it.name)}</td></tr>` : '';
+    }
     const pType = it.priceType || 'ex';
     const isIncl = pType === 'in';
+    const isDirect = !!it.directAmount;
     const amt = itemAmounts(it);
-    const priceLabel = isIncl
-      ? `${fmtYen(it.price)}<br><span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:2px;padding:1px 3px">税込</span>`
-      : fmtYen(it.price);
-    const amtLabel = isIncl
-      ? `${fmtYen(amt.incl)}<br><span style="font-size:10px;color:#9ca3af">税抜: ${fmtYen(amt.excl)}</span>`
-      : fmtYen(amt.excl);
+    const priceLabel = isDirect ? '—'
+      : isIncl
+        ? `${fmtYen(it.price)}<br><span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:2px;padding:1px 3px">税込</span>`
+        : fmtYen(it.price);
+    const qtyLabel = isDirect ? '—' : `${it.qty} ${escape_html(it.unit)}`;
+    const amtLabel = isDirect
+      ? fmtYen(amt.excl)
+      : isIncl
+        ? `${fmtYen(amt.incl)}<br><span style="font-size:10px;color:#9ca3af">税抜: ${fmtYen(amt.excl)}</span>`
+        : fmtYen(amt.excl);
     return `<tr>
       <td>${escape_html(it.name)||'—'}</td>
-      <td style="text-align:right">${it.qty} ${escape_html(it.unit)}</td>
+      <td style="text-align:right">${qtyLabel}</td>
       <td style="text-align:right">${priceLabel}</td>
       <td style="text-align:center">${it.tax}%${it.tax==8?' ※':''}</td>
       <td style="text-align:right">${amtLabel}</td>
@@ -1319,9 +1459,18 @@ function renderPreview(doc, targetId) {
 function calcTotalsFrom(doc) {
   let sub=0, tax10=0, tax8=0;
   doc.items.forEach(it => {
+    if (it.rowType === 'text') return; // テキスト行は集計しない
+    const rate = Number(it.tax) || 0;
+    // 金額直接入力モード
+    if (it.directAmount) {
+      const val = it.directAmountVal || 0;
+      sub += val;
+      if (rate === 10) tax10 += Math.floor(val * 0.1);
+      else if (rate === 8) tax8 += Math.floor(val * 0.08);
+      return;
+    }
     const qty = it.qty || 0;
     const price = it.price || 0;
-    const rate = Number(it.tax) || 0;
     const pType = it.priceType || 'ex';
     if (pType === 'in') {
       // 税込入力 → 税抜を逆算
@@ -1776,6 +1925,13 @@ window.addEventListener('hashchange', checkSharedUrl);
 // close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => { if (e.target===overlay) overlay.classList.remove('open'); });
+});
+// close col-settings popup on outside click
+document.addEventListener('click', e => {
+  const popup = document.getElementById('col-popup');
+  if (popup && !popup.closest('.col-settings-wrap').contains(e.target)) {
+    popup.style.display = 'none';
+  }
 });
 </script>
 </body>
