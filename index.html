@@ -21,6 +21,7 @@
     --input-bg: #f3f4f6;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  input[type="text"], textarea { ime-mode: active; }
   body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
 
   /* ===== LAYOUT ===== */
@@ -930,11 +931,11 @@ function itemAmounts(item) {
   const rate = Number(item.tax) || 0;
   const pType = item.priceType || 'in';
   if (pType === 'in') {
-    const totalIncl = qty * price;
+    const totalIncl = Math.floor(qty * price);
     const totalExcl = inclToExcl(totalIncl, rate);
     return { excl: totalExcl, incl: totalIncl };
   } else {
-    const totalExcl = qty * price;
+    const totalExcl = Math.floor(qty * price);
     const tax = rate === 10 ? Math.floor(totalExcl * 0.1)
                : rate === 8  ? Math.floor(totalExcl * 0.08) : 0;
     return { excl: totalExcl, incl: totalExcl + tax };
