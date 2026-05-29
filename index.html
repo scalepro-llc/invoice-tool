@@ -1907,4 +1907,53 @@ function importData(input) {
       }
 
       // Restore active profile only if not already set
-      if (data.activeProfileId && !act
+      // Restore active profile only if not already set
+      if (data.activeProfileId && !activeProfileId) {
+        localStorage.setItem('invoice_active_profile', data.activeProfileId);
+        activeProfileId = data.activeProfileId;
+      }
+
+      statusEl.textContent = '✅ インポート完了';
+      toast('✅ インポートしました（書類 ' + added + ' 件追加）');
+      closeDataModal();
+      updateSidebarProfile();
+      renderFilterTabs();
+      renderDocList();
+    } catch(err) {
+      statusEl.textContent = '⚠ 失敗';
+      toast('⚠ ファイルの読み込みに失敗しました');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  if (!confirm('本当にすべてのデータを削除しますか？\nこの操作は元に戻せません。')) return;
+  ['invoice_docs','invoice_profiles','invoice_clients','invoice_items','invoice_active_profile'].forEach(k => localStorage.removeItem(k));
+  location.reload();
+}
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  if (location.hash.startsWith('#share=')) { checkSharedUrl(); return; }
+  updateSidebarProfile();
+  renderFilterTabs();
+  renderDocList();
+});
+window.addEventListener('hashchange', checkSharedUrl);
+
+// close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target===overlay) overlay.classList.remove('open'); });
+});
+// close col-settings popup on outside click
+document.addEventListener('click', e => {
+  const popup = document.getElementById('col-popup');
+  if (popup && !popup.closest('.col-settings-wrap').contains(e.target)) {
+    popup.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
