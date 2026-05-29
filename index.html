@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>請求書・領収書作成ツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root {
     --primary: #1a56db;
@@ -375,7 +377,8 @@
           <button class="btn btn-outline" onclick="previewDoc()">👁 プレビュー</button>
           <button class="btn btn-outline" onclick="openUrlModal()">🔗 URL発行</button>
           <button class="btn btn-success" onclick="saveDoc()">💾 保存</button>
-          <button class="btn btn-primary" onclick="printDoc()">🖨 PDF印刷</button>
+          <button class="btn btn-primary" onclick="downloadPdf()">📥 PDFダウンロード</button>
+          <button class="btn btn-outline" onclick="printDoc()">🖨 印刷</button>
         </div>
       </div>
       <div class="content" id="edit-form"></div>
@@ -390,7 +393,8 @@
         </div>
         <div class="header-actions">
           <button class="btn btn-outline" onclick="openUrlModal()">🔗 URL発行</button>
-          <button class="btn btn-primary" onclick="printDoc()">🖨 PDF印刷</button>
+          <button class="btn btn-primary" onclick="downloadPdf()">📥 PDFダウンロード</button>
+          <button class="btn btn-outline" onclick="printDoc()">🖨 印刷</button>
         </div>
       </div>
       <div class="content" id="preview-content" style="max-width:760px;margin:0 auto;"></div>
@@ -1696,6 +1700,58 @@ function printDoc() {
   } else { window.print(); }
 }
 
+async function downloadPdf() {
+  if (currentView==='edit') {
+    collectFormData();
+    renderPreview(currentDoc, 'preview-content');
+    showView('preview');
+    await new Promise(r => setTimeout(r, 300));
+  }
+  const el = document.querySelector('#preview-content .preview-paper');
+  if (!el) { toast('⚠ プレビューを開いてから実行してください'); return; }
+
+  if (!window.html2canvas || !window.jspdf) {
+    toast('⚠ ライブラリ読み込み中です。インターネット接続を確認して再度お試しください');
+    return;
+  }
+
+  toast('📄 PDF生成中…');
+  try {
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = (canvas.height * imgW) / canvas.width;
+    // 複数ページ対応
+    if (imgH <= pageH) {
+      pdf.addImage(imgData, 'PNG', 0, 0, imgW, imgH);
+    } else {
+      let y = 0;
+      while (y < imgH) {
+        if (y > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, -y, imgW, imgH);
+        y += pageH;
+      }
+    }
+    const doc = currentDoc || {};
+    const typeName = doc.type === 'invoice' ? '請求書' : '領収書';
+    const filename = `${typeName}_${doc.number || ''}${doc.client?.name ? '_' + doc.client.name : ''}.pdf`;
+    pdf.save(filename);
+    toast('✅ PDFをダウンロードしました');
+  } catch(e) {
+    console.error(e);
+    toast('⚠ PDF生成に失敗しました');
+  }
+}
+
 // ===== PROFILE LIST =====
 function renderProfileList() {
   const el = document.getElementById('profile-list');
@@ -1993,10 +2049,11 @@ function importData(input) {
 
       // Merge items — skip if same id
       if (Array.isArray(data.items)) {
+        const existingIds = new Set(itemMaster.map(i => i.id));
+        data.items.forEach(i => { if (!existingIds.has(i.id)) itemMaster.push(i); });
         localStorage.setItem('invoice_items', JSON.stringify(itemMaster));
       }
 
-      // Restore active profile only if not already set
       if (data.activeProfileId && !activeProfileId) {
         activeProfileId = data.activeProfileId;
         localStorage.setItem('invoice_active_profile', activeProfileId);
