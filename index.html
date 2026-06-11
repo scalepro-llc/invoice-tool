@@ -1511,6 +1511,7 @@ function renderPreview(doc, targetId) {
       </table>
       <div class="preview-totals"><table>${totalsHtml}</table></div>
       ${doc.notes ? `<div class="notes-section"><strong>備考</strong><br><span style="white-space:pre-line">${escape_html(doc.notes)}</span></div>` : ''}
+      ${isInvoice && issuer.bank ? `<div class="notes-section" style="margin-top:12px;background:#f0f9ff;border-left:3px solid #38bdf8"><strong>振込先口座</strong><br><span style="white-space:pre-line;font-size:13px">${escape_html(issuer.bank)}</span></div>` : ''}
       ${t.tax8>0 ? '<div style="font-size:11px;color:#9ca3af;margin-top:8px">※ 軽減税率対象品目</div>' : ''}
     </div>
   `;
