@@ -1118,7 +1118,8 @@ function collectFormData() {
   currentDoc.client.zip = g('c-zip');
   currentDoc.client.address = g('c-address');
   currentDoc.profileId = g('si-profile') || currentDoc.profileId;
-  currentDoc.issuer = { name:g('si-name'), invoiceNo:g('si-invoiceno'), address:g('si-address'), tel:g('si-tel') };
+  const _bp = profiles.find(p=>p.id===currentDoc.profileId)||{};
+  currentDoc.issuer = { name:g('si-name'), invoiceNo:g('si-invoiceno'), address:g('si-address'), tel:g('si-tel'), bank:_bp.bank||'' };
   currentDoc.notes = g('f-notes');
   if (currentDoc.type==='receipt') {
     currentDoc.receiptPurpose = g('f-purpose');
@@ -1445,6 +1446,7 @@ function renderPreview(doc, targetId) {
   const t = calcTotalsFrom(doc);
   const isInvoice = doc.type==='invoice';
   const issuer = doc.issuer || profiles.find(p=>p.id===doc.profileId) || {};
+  const profileBank = (profiles.find(p=>p.id===doc.profileId)||{}).bank || issuer.bank || '';
   const itemsHtml = doc.items.map(it => {
     // テキスト行
     if (it.rowType === 'text') {
@@ -1511,7 +1513,7 @@ function renderPreview(doc, targetId) {
       </table>
       <div class="preview-totals"><table>${totalsHtml}</table></div>
       ${doc.notes ? `<div class="notes-section"><strong>備考</strong><br><span style="white-space:pre-line">${escape_html(doc.notes)}</span></div>` : ''}
-      ${isInvoice && issuer.bank ? `<div class="notes-section" style="margin-top:12px;background:#f0f9ff;border-left:3px solid #38bdf8"><strong>振込先口座</strong><br><span style="white-space:pre-line;font-size:13px">${escape_html(issuer.bank)}</span></div>` : ''}
+      ${isInvoice && profileBank ? `<div class="notes-section" style="margin-top:12px;background:#f0f9ff;border-left:3px solid #38bdf8"><strong>振込先口座</strong><br><span style="white-space:pre-line;font-size:13px">${escape_html(profileBank)}</span></div>` : ''}
       ${t.tax8>0 ? '<div style="font-size:11px;color:#9ca3af;margin-top:8px">※ 軽減税率対象品目</div>' : ''}
     </div>
   `;
